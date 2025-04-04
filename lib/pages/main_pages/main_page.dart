@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'search_page.dart';
+import '../search_page.dart';
+import 'recommendation_page.dart';
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
@@ -106,12 +107,13 @@ class _MainPageState extends State<MainPage> {
         ),
         body: const TabBarView(
           children: [
-            ColoredBox(
-              color: Colors.white,
-              child: Center(
-                child: Text('推荐'),
-              ),
-            ),
+            // ColoredBox(
+            //   color: Colors.white,
+            //   child: Center(
+            //     child: Text('推荐'),
+            //   ),
+            // ),
+            RecommendationPage(),
             ColoredBox(
               color: Colors.white,
               child: Center(

@@ -106,14 +106,30 @@ class _SearchPageState extends State<SearchPage> {
 
   // 构建搜索历史部分
   Widget _buildHistoryList() {
-    return Column(
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
       children: _searchHistory
-          .map((history) => ListTile(
-                leading: const Icon(Icons.history, size: 20),
-                title: Text(history),
+          .map((history) => GestureDetector(
                 onTap: () {
-                  // TODO: 填充搜索内容并搜索
+                  // TODO: 处理点击搜索事件
                 },
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.history, size: 16, color: Colors.blue),
+                      const SizedBox(width: 4),
+                      Text(history, style: const TextStyle(fontSize: 14))
+                    ],
+                  ),
+                ),
               ))
           .toList(),
     );
@@ -148,4 +164,35 @@ class _SearchPageState extends State<SearchPage> {
           .toList(),
     );
   }
+
+// // 构建热门搜索部分
+// Widget _buildHotSearchList() {
+//   return Wrap(
+//     spacing: 8,
+//     runSpacing: 8,
+//     children: _hotSearch
+//         .map((hotElement) => GestureDetector(
+//               onTap: () {
+//                 // TODO: 处理点击搜索事件
+//               },
+//               child: Container(
+//                 padding:
+//                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+//                 decoration: BoxDecoration(
+//                   color: Colors.grey[200],
+//                   borderRadius: BorderRadius.circular(16),
+//                 ),
+//                 child: Row(
+//                   mainAxisSize: MainAxisSize.min,
+//                   children: [
+//                     const Icon(Icons.whatshot, size: 16, color: Colors.red),
+//                     const SizedBox(width: 4),
+//                     Text(hotElement, style: const TextStyle(fontSize: 14))
+//                   ],
+//                 ),
+//               ),
+//             ))
+//         .toList(),
+//   );
+// }
 }

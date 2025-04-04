@@ -60,7 +60,8 @@ class _LoginPageState extends State<LoginPage> {
                     child: _buildPasswordField(),
                   ),
                   const SizedBox(height: 25),
-                  _buildLoginButton()
+                  _buildLoginButton(),
+                  _buildHelperLinks(),
                 ],
               ),
             ))
@@ -147,6 +148,26 @@ class _LoginPageState extends State<LoginPage> {
               ),
             )
           : const Text('登录'),
+    );
+  }
+
+  Widget _buildHelperLinks() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        TextButton(
+          onPressed: () {
+            // TODO: 跳转注册页面
+          },
+          child: const Text('立即注册'),
+        ),
+        TextButton(
+          onPressed: () {
+            // TODO: 跳转忘记密码页面
+          },
+          child: const Text('忘记密码?'),
+        )
+      ],
     );
   }
 }

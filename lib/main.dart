@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'pages/chat_page.dart';
-import 'pages/main_page.dart';
+import 'pages/main_pages/main_page.dart';
 import 'pages/profile_page.dart';
 
 void main() {
@@ -23,8 +23,8 @@ class Home extends StatelessWidget {
           inputDecorationTheme: InputDecorationTheme(
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0)))),
-      // home: const HomePage(title: 'Welcome to TinyStack'),
       home: HomePage(title: 'Tiny Stack'),
+      // home: LoginPage(),
       debugShowCheckedModeBanner: false,
       supportedLocales: const [Locale('zh', 'CN')],
       localizationsDelegates: const [
