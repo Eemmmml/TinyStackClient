@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../entity/item_content.dart';
 import '../card/content_card.dart';
+import '../content_pages/video_detail_page.dart';
 
 // 下拉方向
 enum LoadDirection { up, down }
@@ -66,7 +67,10 @@ class _RecommendationPageState extends State<RecommendationPage> {
 
   // TODO: 增加实际从后台服务端通过网络获取数据
   Future<void> _loadData({required LoadDirection direction}) async {
-    if ((direction == LoadDirection.down && _isBottomLoading) || (direction == LoadDirection.up && _isTopLoading)) return;
+    if ((direction == LoadDirection.down && _isBottomLoading) ||
+        (direction == LoadDirection.up && _isTopLoading)) {
+      return;
+    }
 
     setState(() {
       if (direction == LoadDirection.down) {
@@ -109,12 +113,17 @@ class _RecommendationPageState extends State<RecommendationPage> {
     _lastScrollPosition = currentPosition;
 
     // 上拉判断（仅当向下滚动时）
-    if (_isScrollingDown && currentPosition >= position.maxScrollExtent - 100 && !_isBottomLoading && _hasMore) {
+    if (_isScrollingDown &&
+        currentPosition >= position.maxScrollExtent - 50 &&
+        !_isBottomLoading &&
+        _hasMore) {
       _loadData(direction: LoadDirection.down);
     }
 
     // 下拉判断
-    if (!_isScrollingDown && position.pixels <= position.minScrollExtent + 100 && !_isTopLoading) {
+    if (!_isScrollingDown &&
+        position.pixels <= position.minScrollExtent + 100 &&
+        !_isTopLoading) {
       _loadData(direction: LoadDirection.up);
     }
   }
@@ -135,8 +144,9 @@ class _RecommendationPageState extends State<RecommendationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: RefreshIndicator(
-        displacement: 100,
-        edgeOffset: 100,
+        color: Colors.green,
+        displacement: 30,
+        edgeOffset: 30,
         onRefresh: _handleRefresh,
         child: _showBannerLayout ? _buildBannerLayout() : _buildNormalLayout(),
       ),
@@ -145,11 +155,43 @@ class _RecommendationPageState extends State<RecommendationPage> {
 
   // 构建含 Banner 的页面
   Widget _buildBannerLayout() {
-    return Column(
-      children: [
-        _buildBanner(),
-        Expanded(child: _buildContentGrid(itemCount: 8)),
+    return CustomScrollView(
+      controller: _scrollController,
+      physics: const ClampingScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(child: _buildBanner()),
+        _buildContentSliverGrid(),
+        SliverToBoxAdapter(child: _buildBottomLoader()),
       ],
+    );
+  }
+
+  Widget _buildContentSliverGrid() {
+    return SliverGrid(
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final item = _contentItems[index];
+          return InkWell(
+            onTap: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => VideoDetailPage()));
+            },
+            borderRadius: BorderRadius.circular(8),
+            child: ContentCard(
+              title: item.title,
+              author: item.author,
+              imageUrl: item.imageUrl,
+            ),
+          );
+        },
+        childCount: _contentItems.length,
+      ),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 8,
+        mainAxisSpacing: 8,
+        childAspectRatio: 0.75,
+      ),
     );
   }
 
@@ -181,10 +223,19 @@ class _RecommendationPageState extends State<RecommendationPage> {
           ),
           itemCount: _contentItems.length,
           itemBuilder: (context, index) {
-            return ContentCard(
-              title: _contentItems[index].title,
-              author: _contentItems[index].author,
-              imageUrl: _contentItems[index].imageUrl,
+            final item = _contentItems[index];
+            return InkWell(
+              onTap: () {
+                // TODO: 实现页面跳转逻辑
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (context) => VideoDetailPage()));
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: ContentCard(
+                title: item.title,
+                author: item.author,
+                imageUrl: item.imageUrl,
+              ),
             );
           },
         )),
@@ -193,26 +244,33 @@ class _RecommendationPageState extends State<RecommendationPage> {
     );
   }
 
-
- // 构建下拉刷新动画
-  Widget _buildTopLoader() {
-    return AnimatedContainer(
-      duration: Duration(milliseconds: 300),
-      height: _isTopLoading ? 60 : 0,
-      child: Center(
-        child: _isTopLoading ? CircularProgressIndicator() : SizedBox.shrink(),
-      ),
-    );
-  }
-
+  // // 构建下拉刷新动画
+  // Widget _buildTopLoader() {
+  //   return AnimatedContainer(
+  //     duration: Duration(milliseconds: 300),
+  //     height: _isTopLoading ? 60 : 0,
+  //     child: Center(
+  //       child: _isTopLoading ? CircularProgressIndicator() : SizedBox.shrink(),
+  //     ),
+  //   );
+  // }
 
   // 构建上拉加载动画
   Widget _buildBottomLoader() {
     return AnimatedContainer(
       duration: Duration(milliseconds: 300),
-      height: _isBottomLoading ? 60 : 0,
+      height: _isBottomLoading ? 45 : 0,
       child: Center(
-        child: _isBottomLoading ? CircularProgressIndicator() : _hasMore ? SizedBox.shrink() : Text('没有更多内容了'),
+        child: _isBottomLoading
+            ? CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.greenAccent),
+                backgroundColor: Colors.grey,
+                strokeWidth: 4.0,
+                strokeCap: StrokeCap.round,
+              )
+            : _hasMore
+                ? SizedBox.shrink()
+                : Text('没有更多内容了'),
       ),
     );
   }
@@ -270,7 +328,7 @@ class _RandomBannerState extends State<RandomBanner> {
       alignment: Alignment.bottomRight,
       children: [
         SizedBox(
-          height: 250,
+          height: 220,
           child: PageView(
             controller: _pageController,
             onPageChanged: _onPageChanged,
@@ -310,17 +368,40 @@ class _RandomBannerState extends State<RandomBanner> {
     );
   }
 
+  // // 构建 Banner 内部元素
+  // Widget _buildBannerItem(String imageUrl) {
+  //   return Container(
+  //     margin: EdgeInsets.all(8),
+  //     decoration: BoxDecoration(
+  //       borderRadius: BorderRadius.circular(8),
+  //       image: DecorationImage(
+  //         // TODO: 将图片获取改为从网络进行获取
+  //         // image: NetworkImage(imageUrl),
+  //         image: AssetImage(imageUrl),
+  //         fit: BoxFit.cover,
+  //       ),
+  //     ),
+  //   );
+  // }
+
   // 构建 Banner 内部元素
   Widget _buildBannerItem(String imageUrl) {
-    return Container(
-      margin: EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        image: DecorationImage(
-          // TODO: 将图片获取改为从网络进行获取
-          // image: NetworkImage(imageUrl),
-          image: AssetImage(imageUrl),
-          fit: BoxFit.cover,
+    return InkWell(
+      onTap: () {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => VideoDetailPage()));
+      },
+      borderRadius: BorderRadius.circular(8.0),
+      child: Container(
+        margin: EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          image: DecorationImage(
+            // TODO: 将图片获取改为从网络进行获取
+            // image: NetworkImage(imageUrl),
+            image: AssetImage(imageUrl),
+            fit: BoxFit.cover,
+          ),
         ),
       ),
     );
