@@ -1,5 +1,6 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+
+import 'comment_page.dart';
 
 class VideoDetailPage extends StatefulWidget {
   const VideoDetailPage({super.key});
@@ -35,19 +36,18 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
               SliverPersistentHeader(
                 pinned: true,
                 delegate: _StickyTabBarDelegate(
-                  child: TabBar(
-                    // 指示器颜色
-                    indicatorColor: Colors.blue,
-                    // 选中标签颜色
-                    labelColor: Colors.black,
-                    // 未选中标签的颜色
-                    unselectedLabelColor: Colors.grey,
-                    tabs: const [
-                      Tab(text: '简介'),
-                      Tab(text: '评论'),
-                    ],
-                  )
-                ),
+                    child: TabBar(
+                  // 指示器颜色
+                  indicatorColor: Colors.blue,
+                  // 选中标签颜色
+                  labelColor: Colors.black,
+                  // 未选中标签的颜色
+                  unselectedLabelColor: Colors.grey,
+                  tabs: const [
+                    Tab(text: '简介'),
+                    Tab(text: '评论'),
+                  ],
+                )),
               ),
             ];
           },
@@ -72,23 +72,24 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
               ),
 
               // 评论页面
-              Container(
-                color: Colors.blue[100],
-                child: ListView(
-                  children: [
-                    // 添加评论列表
-                    const Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: Text('热门评论', style: TextStyle(fontSize: 20)),
-                    ),
-                    Container(
-                      // 占位高度
-                      height: 800,
-                      color: Colors.blue[200],
-                    ),
-                  ],
-                ),
-              ),
+              // Container(
+              //   color: Colors.blue[100],
+              //   child: ListView(
+              //     children: [
+              //       // 添加评论列表
+              //       const Padding(
+              //         padding: EdgeInsets.all(16.0),
+              //         child: Text('热门评论', style: TextStyle(fontSize: 20)),
+              //       ),
+              //       Container(
+              //         // 占位高度
+              //         height: 800,
+              //         color: Colors.blue[200],
+              //       ),
+              //     ],
+              //   ),
+              // ),
+              CommentPage(),
             ],
           ),
         ),
@@ -97,17 +98,15 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
   }
 }
 
-
-
 // 自定义吸顶 Tab 栏实现
 class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar child;
 
   _StickyTabBarDelegate({required this.child});
 
-
   @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       // Tab 背景颜色
       color: Colors.white,
@@ -125,5 +124,4 @@ class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
     return false;
   }
-
 }
