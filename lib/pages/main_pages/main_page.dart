@@ -26,32 +26,6 @@ class _MainPageState extends State<MainPage> {
               // 点击头像后出发实际逻辑
             },
           ),
-          // title: TextFormField(
-          //   decoration: InputDecoration(
-          //       hintText: '搜索',
-          //       filled: true,
-          //       fillColor: Colors.grey[200],
-          //       contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-          //       border: OutlineInputBorder(
-          //         borderRadius: BorderRadius.circular(20),
-          //         borderSide: BorderSide.none,
-          //       ),
-          //       enabledBorder: OutlineInputBorder(
-          //         borderRadius: BorderRadius.circular(20),
-          //         borderSide: BorderSide.none,
-          //       ),
-          //       focusedBorder: OutlineInputBorder(
-          //         borderRadius: BorderRadius.circular(20),
-          //         borderSide: BorderSide.none,
-          //       ),
-          //       suffixIcon: IconButton(
-          //         icon: Icon(Icons.search, size: 20),
-          //         onPressed: () {
-          //           // TODO: 实现具体的搜索逻辑
-          //         },
-          //       )),
-          //   readOnly: false,
-          // ),
           title: InkWell(
             // TODO: 这里的导航逻辑用 Deep Link 进行更改进行更加统一的管理
             // onTap: () => Navigator.pushNamed(context, '/search'),
@@ -107,12 +81,6 @@ class _MainPageState extends State<MainPage> {
         ),
         body: const TabBarView(
           children: [
-            // ColoredBox(
-            //   color: Colors.white,
-            //   child: Center(
-            //     child: Text('推荐'),
-            //   ),
-            // ),
             RecommendationPage(),
             ColoredBox(
               color: Colors.white,

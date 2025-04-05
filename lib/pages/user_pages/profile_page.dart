@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../entity/user_basic_info.dart';
+import '../../provider/theme_provider.dart';
+import 'profile_edit_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -8,8 +13,14 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
+  // 获取个人用户数据
+  final UserBasicInfo myUserBasicInfo = UserBasicInfo.myUserBasicInfo;
+
   @override
   Widget build(BuildContext context) {
+    // 主题数据控制器提供者
+    final ThemeProvider themeProvider = Provider.of<ThemeProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         actions: [
@@ -20,15 +31,24 @@ class _ProfilePageState extends State<ProfilePage> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.dark_mode),
+            icon: Icon(themeProvider.themeMode == ThemeMode.dark
+                ? Icons.light_mode
+                : Icons.dark_mode),
             onPressed: () {
-              // TODO: 实现具体功能
+              // TODO: 实现亮色主题和暗色主体切换的功能
+              // TODO: 添加对于APP状态的持久化存储
+              themeProvider
+                  .toggleTheme((themeProvider.themeMode != ThemeMode.dark));
             },
           ),
           IconButton(
             icon: const Icon(Icons.face),
             onPressed: () {
-              // TODO: 实现具体功能
+              // TODO: 实现跳转个人信息编辑页面
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const ProfileEditPage()));
             },
           ),
         ],
@@ -56,7 +76,9 @@ class _ProfilePageState extends State<ProfilePage> {
           // 用户头像
           CircleAvatar(
             radius: 40,
-            backgroundImage: AssetImage('assets/user_info/user_avatar.jpg'),
+            // TODO: 将图片改为从网络获取
+            // backgroundImage: NetworkImage(url),
+            backgroundImage: AssetImage(myUserBasicInfo.avatarImageUrl),
           ),
           const SizedBox(
             width: 16,
@@ -66,12 +88,12 @@ class _ProfilePageState extends State<ProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '用户名',
+                  myUserBasicInfo.username,
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  '个人简介',
+                  myUserBasicInfo.description,
                   style: TextStyle(color: Colors.grey, fontSize: 14),
                 )
               ],
@@ -97,9 +119,9 @@ class _ProfilePageState extends State<ProfilePage> {
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           // 添加元素
-          _buildStatsItem('21', '关注'),
-          _buildStatsItem('500', '作品'),
-          _buildStatsItem('1w', '粉丝'),
+          _buildStatsItem(myUserBasicInfo.interests, '关注'),
+          _buildStatsItem(myUserBasicInfo.compositions, '作品'),
+          _buildStatsItem(myUserBasicInfo.fans, '粉丝'),
         ],
       ),
     );

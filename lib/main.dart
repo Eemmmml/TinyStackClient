@@ -1,12 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:provider/provider.dart';
 
 import 'pages/chat_page.dart';
 import 'pages/main_pages/main_page.dart';
-import 'pages/profile_page.dart';
+import 'pages/user_pages/profile_page.dart';
+import 'provider/theme_provider.dart';
 
 void main() {
-  runApp(const Home());
+  // runApp(const Home());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => ThemeProvider(),
+      child: const Home(),
+    ),
+  );
 }
 
 class Home extends StatelessWidget {
@@ -23,7 +31,9 @@ class Home extends StatelessWidget {
           inputDecorationTheme: InputDecorationTheme(
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0)))),
+      darkTheme: ThemeData.dark(),
       home: HomePage(title: 'Tiny Stack'),
+      themeMode: context.watch<ThemeProvider>().themeMode,
       // home: LoginPage(),
       debugShowCheckedModeBanner: false,
       supportedLocales: const [Locale('zh', 'CN')],
