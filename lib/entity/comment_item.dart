@@ -1,30 +1,38 @@
 class Comment {
+  final int id;
   final String avatar;
   final String username;
   final String time;
   final String ip;
   final String content;
-  final int likeCount;
-  final int dislikeCount;
-  final List<Reply> replies;
   final bool isAuthor;
+  int likeCount;
+  int dislikeCount;
+  List<Reply> replies;
+  bool isLiked;
+  bool isDisliked;
 
-  Comment(
-      {required this.avatar,
-      required this.username,
-      required this.time,
-      required this.ip,
-      required this.content,
-      required this.likeCount,
-      required this.dislikeCount,
-      this.replies = const [],
-      this.isAuthor = false});
+  Comment({
+    required this.id,
+    required this.avatar,
+    required this.username,
+    required this.time,
+    required this.ip,
+    required this.content,
+    this.likeCount = 0,
+    this.dislikeCount = 0,
+    this.replies = const [],
+    this.isAuthor = false,
+    this.isDisliked = false,
+    this.isLiked = false,
+  });
 
   // 测试模拟数据
   // TODO: 后续数据通过网络从后端服务获取
   static List<Comment> get comments {
     return [
       Comment(
+        id: 1,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '科技爱好者',
         time: '1天前',
@@ -39,8 +47,10 @@ class Comment {
             content: '我们使用了最新的RED摄影机拍摄~',
           )
         ],
+        isLiked: true,
       ),
       Comment(
+        id: 2,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '美食家老张',
         time: '5分钟前',
@@ -58,10 +68,22 @@ class Comment {
             username: '吃货小分队',
             tag: '认证用户',
             content: '求店铺地址！',
-          )
+          ),
+          Reply(
+            username: '吃货小分队',
+            tag: '认证用户',
+            content: '求店铺地址！',
+          ),
+          Reply(
+            username: '吃货小分队',
+            tag: '认证用户',
+            content: '求店铺地址！',
+          ),
         ],
+        isDisliked: true,
       ),
       Comment(
+        id: 4,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '旅行蛙',
         time: '3小时前',
@@ -72,6 +94,7 @@ class Comment {
         replies: [],
       ),
       Comment(
+        id: 3,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '历史迷',
         time: '6小时前',
@@ -88,6 +111,7 @@ class Comment {
         ],
       ),
       Comment(
+        id: 7,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '音乐达人',
         time: '昨天',
@@ -104,6 +128,7 @@ class Comment {
         ],
       ),
       Comment(
+        id: 9,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '健身狂魔',
         time: '2小时前',
@@ -125,6 +150,7 @@ class Comment {
         ],
       ),
       Comment(
+        id: 10,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '数码控',
         time: '4天前',
@@ -135,6 +161,7 @@ class Comment {
         replies: [],
       ),
       Comment(
+        id: 12,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '小说家',
         time: '12分钟前',
@@ -151,6 +178,7 @@ class Comment {
         ],
       ),
       Comment(
+        id: 13,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '萌宠日记',
         time: '1小时前',
@@ -172,6 +200,7 @@ class Comment {
         ],
       ),
       Comment(
+        id: 16,
         avatar: 'assets/user_info/user_avatar.jpg',
         username: '考研党',
         time: '3天前',
@@ -188,6 +217,28 @@ class Comment {
         ],
       )
     ];
+  }
+
+  Comment copyWith({
+    int? likeCount,
+    int? dislikeCount,
+    bool? isLiked,
+    bool? isDisliked,
+  }) {
+    return Comment(
+      id: id,
+      avatar: avatar,
+      username: username,
+      time: time,
+      ip: ip,
+      content: content,
+      likeCount: likeCount ?? this.likeCount,
+      dislikeCount: dislikeCount ?? this.dislikeCount,
+      replies: replies,
+      isAuthor: isAuthor,
+      isLiked: isLiked ?? this.isLiked,
+      isDisliked: isDisliked ?? this.isDisliked,
+    );
   }
 }
 

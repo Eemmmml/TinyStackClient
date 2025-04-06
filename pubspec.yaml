@@ -31,6 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   provider: ^6.0.5
+  video_player: ^2.8.2
 
   flutter_localizations:
     sdk: flutter
@@ -64,6 +65,7 @@ flutter:
     - assets/
     - assets/login_background/
     - assets/user_info/
+    - assets/videos/
 
   # To add images to your application, add an images section, like this:
   # images:
