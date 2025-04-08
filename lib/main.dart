@@ -26,6 +26,9 @@ class Home extends StatelessWidget {
     return MaterialApp(
       title: 'TinyStack',
       theme: ThemeData(
+          splashColor: Colors.transparent,
+          highlightColor: Colors.transparent,
+          splashFactory: NoSplash.splashFactory,
           colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
           useMaterial3: true,
           inputDecorationTheme: InputDecorationTheme(

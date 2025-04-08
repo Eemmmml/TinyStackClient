@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../user_pages/profile_page_for_others.dart';
+
 class VideoInfoPage extends StatefulWidget {
   const VideoInfoPage({super.key});
 
@@ -58,17 +60,38 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
       child: Row(
         children: [
           // UP 主头像
-          CircleAvatar(
-            radius: 24,
-            // TODO: 从网络获取头像
-            // backgroundImage: NetworkImage(url),
-            backgroundImage: AssetImage('assets/user_info/user_avatar3.jpg'),
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => ProfilePageForOthers()));
+            },
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
+            child: CircleAvatar(
+              radius: 24,
+              // TODO: 从网络获取头像
+              // backgroundImage: NetworkImage(url),
+              backgroundImage: AssetImage('assets/user_info/user_avatar3.jpg'),
+            ),
           ),
           const SizedBox(
             width: 12,
           ),
           // 用户信息
           Expanded(
+              child: InkWell(
+            onTap: () {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => ProfilePageForOthers()));
+            },
+            splashColor: Colors.transparent,
+            highlightColor: Colors.transparent,
+            hoverColor: Colors.transparent,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -88,7 +111,7 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
                 ),
               ],
             ),
-          ),
+          )),
 
           // 关注按钮
           ElevatedButton(
@@ -192,8 +215,6 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
     );
   }
 
-
-
   // 构建视频列表
   Widget _buildVideoList() {
     return ListView.builder(
@@ -203,8 +224,6 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
       itemBuilder: (context, index) => _buildVideoCard(index),
     );
   }
-
-
 
   // 构建单个视频卡片组件
   Widget _buildVideoCard(int index) {
@@ -311,4 +330,7 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
       ],
     );
   }
+
+  // TODO: 实现点击用户头像或信息跳转用户主页的逻辑
+  void _handleUserProfilePage() {}
 }
