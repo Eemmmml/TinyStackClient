@@ -206,50 +206,12 @@ class _RecommendationPageState extends State<RecommendationPage> {
     );
   }
 
-
   // 构建 Banner 视图
   Widget _buildBanner() {
     return RandomBanner();
   }
 
-  // // 构建网格视图
-  // Widget _buildContentGrid({required int itemCount}) {
-  //   return Column(
-  //     children: [
-  //       // _buildTopLoader(),
-  //       Expanded(
-  //           child: GridView.builder(
-  //         controller: _scrollController,
-  //         physics: const ClampingScrollPhysics(),
-  //         padding: EdgeInsets.all(8),
-  //         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-  //           crossAxisCount: 2,
-  //           crossAxisSpacing: 8,
-  //           mainAxisSpacing: 8,
-  //           childAspectRatio: 0.75,
-  //         ),
-  //         itemCount: _contentItems.length,
-  //         itemBuilder: (context, index) {
-  //           final item = _contentItems[index];
-  //           return InkWell(
-  //             onTap: () {
-  //               // TODO: 实现页面跳转逻辑
-  //               Navigator.push(context,
-  //                   MaterialPageRoute(builder: (context) => VideoDetailPage()));
-  //             },
-  //             borderRadius: BorderRadius.circular(8),
-  //             child: ContentCard(
-  //               title: item.title,
-  //               author: item.author,
-  //               imageUrl: item.imageUrl,
-  //             ),
-  //           );
-  //         },
-  //       )),
-  //       _buildBottomLoader(),
-  //     ],
-  //   );
-  // }
+
 
   // 构建上拉加载动画
   Widget _buildBottomLoader() {
@@ -281,7 +243,7 @@ class RandomBanner extends StatefulWidget {
 
 // 构建 Banner 页面
 class _RandomBannerState extends State<RandomBanner> {
-  final PageController _pageController = PageController();
+  final PageController _pageController = PageController(initialPage: 5000);
   final int _bannerCount = 5;
   int _currentPage = 0;
   Timer? _timer;
@@ -292,20 +254,20 @@ class _RandomBannerState extends State<RandomBanner> {
     _startAutoPlay();
   }
 
+
+
   void _startAutoPlay() {
     _timer = Timer.periodic(Duration(seconds: 3), (timer) {
-      _currentPage = (_currentPage + 1) % _bannerCount;
-      _pageController.animateToPage(
-        _currentPage,
-        duration: Duration(milliseconds: 500),
-        curve: Curves.ease,
-      );
+      final nextPage = (_pageController.page!.toInt() + 1) % _bannerCount;
+      _pageController.animateToPage(nextPage,
+          duration: Duration(milliseconds: 300), curve: Curves.ease);
     });
   }
 
   void _onPageChanged(int index) {
+    final actualIndex = index % _bannerCount;
     setState(() {
-      _currentPage = index;
+      _currentPage = actualIndex;
     });
     _timer?.cancel();
     _startAutoPlay();
@@ -318,6 +280,8 @@ class _RandomBannerState extends State<RandomBanner> {
     super.dispose();
   }
 
+
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -325,13 +289,13 @@ class _RandomBannerState extends State<RandomBanner> {
       children: [
         SizedBox(
           height: 220,
-          child: PageView(
+          child: PageView.builder(
             controller: _pageController,
             onPageChanged: _onPageChanged,
-            children: List.generate(
-                _bannerCount,
-                (index) =>
-                    _buildBannerItem('assets/user_info/user_avatar1.jpg')),
+            itemBuilder: (context, index) {
+              final actualIndex = index % _bannerCount;
+              return _buildBannerItem('assets/user_info/user_avatar1.jpg');
+            },
           ),
         ),
         _buildIndicator(),
