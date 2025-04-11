@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 import '../../entity/item_content.dart';
+import '../../entity/page_data.dart';
 import '../card/content_card.dart';
 import '../content_pages/video_detail_page.dart';
 
@@ -51,10 +52,14 @@ class _RecommendationPageState extends State<RecommendationPage> {
   // 每页的元素数量
   final int _pageSize = 10;
 
+  // 修改数据结构为分页存储
+  List<PageData> _pages = [];
+  int _currentPageNumber = 1;
+
   @override
   void initState() {
     super.initState();
-    _showBannerLayout = _random.nextBool();
+    // _showBannerLayout = _random.nextBool();
     _scrollController.addListener(_scrollListener);
     _loadData(direction: LoadDirection.up);
   }
@@ -64,6 +69,45 @@ class _RecommendationPageState extends State<RecommendationPage> {
     _scrollController.dispose();
     super.dispose();
   }
+
+  // // TODO: 增加实际从后台服务端通过网络获取数据
+  // Future<void> _loadData({required LoadDirection direction}) async {
+  //   if ((direction == LoadDirection.down && _isBottomLoading) ||
+  //       (direction == LoadDirection.up && _isTopLoading)) {
+  //     return;
+  //   }
+  //
+  //   setState(() {
+  //     if (direction == LoadDirection.down) {
+  //       _isBottomLoading = true;
+  //       _currentPage++;
+  //     } else {
+  //       _isTopLoading = true;
+  //       _currentPage = 1;
+  //     }
+  //   });
+  //
+  //   try {
+  //     final newItems = await MockData.fetchData(_currentPage, _pageSize);
+  //
+  //     setState(() {
+  //       if (direction == LoadDirection.down) {
+  //         _contentItems.addAll(newItems);
+  //       } else {
+  //         _contentItems = newItems;
+  //       }
+  //       _hasMore = newItems.length == _pageSize;
+  //     });
+  //   } finally {
+  //     setState(() {
+  //       if (direction == LoadDirection.down) {
+  //         _isBottomLoading = false;
+  //       } else {
+  //         _isTopLoading = false;
+  //       }
+  //     });
+  //   }
+  // }
 
   // TODO: 增加实际从后台服务端通过网络获取数据
   Future<void> _loadData({required LoadDirection direction}) async {
@@ -84,12 +128,16 @@ class _RecommendationPageState extends State<RecommendationPage> {
 
     try {
       final newItems = await MockData.fetchData(_currentPage, _pageSize);
+      // 为每个页面生成 Banner 标志
+      final hasBanner = _random.nextBool();
 
       setState(() {
         if (direction == LoadDirection.down) {
-          _contentItems.addAll(newItems);
+          _pages.add(PageData(items: newItems, hasBanner: hasBanner));
+          _currentPageNumber++;
         } else {
-          _contentItems = newItems;
+          _pages = [PageData(items: newItems, hasBanner: hasBanner)];
+          _currentPageNumber = 2;
         }
         _hasMore = newItems.length == _pageSize;
       });
@@ -153,14 +201,53 @@ class _RecommendationPageState extends State<RecommendationPage> {
     );
   }
 
+  // // 构建含 Banner 的页面
+  // Widget _buildBannerLayout() {
+  //   return CustomScrollView(
+  //     controller: _scrollController,
+  //     physics: const ClampingScrollPhysics(),
+  //     slivers: [
+  //       SliverToBoxAdapter(child: _buildBanner()),
+  //       _buildContentSliverGrid(),
+  //       SliverToBoxAdapter(child: _buildBottomLoader()),
+  //     ],
+  //   );
+  // }
+
   // 构建含 Banner 的页面
   Widget _buildBannerLayout() {
     return CustomScrollView(
       controller: _scrollController,
       physics: const ClampingScrollPhysics(),
       slivers: [
-        SliverToBoxAdapter(child: _buildBanner()),
-        _buildContentSliverGrid(),
+        ..._pages.expand((page) => [
+              if (page.hasBanner) SliverToBoxAdapter(child: _buildBanner()),
+              SliverGrid(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => InkWell(
+                    onTap: () => {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => VideoDetailPage()))
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: ContentCard(
+                      title: page.items[index].title,
+                      author: page.items[index].author,
+                      imageUrl: page.items[index].imageUrl,
+                    ),
+                  ),
+                  childCount: page.items.length,
+                ),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 0.75,
+                ),
+              ),
+            ]),
         SliverToBoxAdapter(child: _buildBottomLoader()),
       ],
     );
@@ -195,9 +282,47 @@ class _RecommendationPageState extends State<RecommendationPage> {
     );
   }
 
+  // // 构建正常的页面
+  // Widget _buildNormalLayout() {
+  //   return _buildContentGrid(itemCount: 10);
+  // }
+
   // 构建正常的页面
   Widget _buildNormalLayout() {
-    return _buildContentGrid(itemCount: 10);
+    return CustomScrollView(
+      controller: _scrollController,
+      physics: const ClampingScrollPhysics(),
+      slivers: [
+        ..._pages.expand((page) => [
+              SliverGrid(
+                delegate: SliverChildBuilderDelegate(
+                  (context, index) => InkWell(
+                    onTap: () => {
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => VideoDetailPage()))
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: ContentCard(
+                      title: page.items[index].title,
+                      author: page.items[index].author,
+                      imageUrl: page.items[index].imageUrl,
+                    ),
+                  ),
+                  childCount: page.items.length,
+                ),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                  childAspectRatio: 0.75,
+                ),
+              ),
+            ]),
+        SliverToBoxAdapter(child: _buildBottomLoader()),
+      ],
+    );
   }
 
   // 构建 Banner 视图
