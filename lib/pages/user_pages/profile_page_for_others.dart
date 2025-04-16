@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:tinystack/entity/user_profile_attachment.dart';
+
+import 'profile_page_for_others_attachment_page.dart';
 
 class ProfilePageForOthers extends StatefulWidget {
   const ProfilePageForOthers({super.key});
@@ -16,6 +19,30 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
   // 是否关注了当前用户
   bool _isFollowed = false;
 
+  // 新增滚动监听变量
+  double _scrollOffset = 0;
+
+  // 根据实际内容调整阀值
+  bool get _showFullAppBar => _scrollOffset > 200;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_scrollListener);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_scrollListener);
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    setState(() {
+      _scrollOffset = _scrollController.offset;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -25,11 +52,19 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
           controller: _scrollController,
           headerSliverBuilder: (context, innerBoxIsScrolled) {
             return [
-              SliverList(
-                delegate: SliverChildListDelegate([
-                  // 顶部背景和头像
-                  Stack(
+              // 新增的动态 AppBar
+              SliverAppBar(
+                expandedHeight: 160,
+                pinned: true,
+                floating: false,
+                snap: false,
+                backgroundColor:
+                    _showFullAppBar ? Colors.white : Colors.transparent,
+                flexibleSpace: FlexibleSpaceBar(
+                  collapseMode: CollapseMode.pin,
+                  background: Stack(
                     clipBehavior: Clip.none,
+                    fit: StackFit.expand,
                     children: [
                       Container(
                         height: 200,
@@ -42,7 +77,7 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                       ),
                       Positioned(
                         left: 27,
-                        bottom: -70,
+                        bottom: -65,
                         child: Container(
                           width: 100,
                           height: 100,
@@ -59,86 +94,152 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                       ),
                     ],
                   ),
-                  SizedBox(height: 15), // 为头像留出空间
-
-                  // 用户信息区域
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(width: 140), // 头像占位宽度
-                        Expanded(
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceAround,
-                                children: [
-                                  _buildStatItem('1.2万', '粉丝'),
-                                  _buildStatItem('345', '关注'),
-                                  _buildStatItem('5.6万', '获赞'),
-                                ],
-                              ),
-                              SizedBox(height: 12),
-                              SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton(
-                                  onPressed: _toggleIsFollowed,
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: _isFollowed
-                                          ? Colors.grey[400]
-                                          : Colors.pinkAccent,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(6),
-                                      )),
-                                  // child: Text(_isFollowed ? '取关' : '+关注'),
-                                  child: _isFollowed
-                                      ? Center(
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(Icons.format_list_bulleted,
-                                                  color: Colors.grey[600]),
-                                              const SizedBox(width: 3),
-                                              Text('已关注',
-                                                  style: TextStyle(
-                                                      color: Colors.grey[600],
-                                                      fontWeight:
-                                                          FontWeight.w900)),
-                                            ],
-                                          ),
-                                        )
-                                      : Center(
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            children: [
-                                              Icon(Icons.add,
-                                                  color: Colors.white),
-                                              const SizedBox(width: 3),
-                                              Text(
-                                                '关注',
-                                                style: TextStyle(
-                                                    fontWeight:
-                                                        FontWeight.w900),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                ),
-                              ),
-                            ],
+                ),
+                title: AnimatedOpacity(
+                  opacity: _showFullAppBar ? 1.0 : 0.0,
+                  duration: Duration(milliseconds: 200),
+                  child: _buildTitleWidget(),
+                ),
+                leading: IconButton(
+                  icon: Icon(Icons.arrow_back_ios_new_rounded,
+                      color: Colors.blue),
+                  onPressed: () {
+                    // TODO: 实现按钮的返回逻辑
+                    Navigator.of(context).pop();
+                  },
+                ),
+                actions: _showFullAppBar
+                    ? [
+                        IconButton(
+                          icon: Icon(Icons.more_vert, color: Colors.blue),
+                          onPressed: () {
+                            // TODO: 实现按钮点击逻辑
+                          },
+                        ),
+                      ]
+                    : [
+                        Opacity(
+                          opacity: 0.5,
+                          child: IconButton(
+                            icon: Icon(
+                              Icons.more_vert,
+                              color: Colors.blue,
+                            ),
+                            onPressed: () {
+                              // TODO: 实现按钮点击逻辑
+                            },
                           ),
                         ),
                       ],
-                    ),
-                  ),
+              ),
 
+              SliverList(
+                delegate: SliverChildListDelegate([
+                  SizedBox(height: 15),
+                  // 为头像留出空间
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Positioned(
+                        left: 27,
+                        top: -50,
+                        child: Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            image: DecorationImage(
+                              image: AssetImage(
+                                  'assets/user_info/user_avatar2.jpg'),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                      ),
+                      // 用户信息区域
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            SizedBox(width: 140), // 头像占位宽度
+                            Expanded(
+                              child: Column(
+                                children: [
+                                  Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceAround,
+                                    children: [
+                                      _buildStatItem('1.2万', '粉丝'),
+                                      _buildStatItem('345', '关注'),
+                                      _buildStatItem('5.6万', '获赞'),
+                                    ],
+                                  ),
+                                  SizedBox(height: 12),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton(
+                                      onPressed: _toggleIsFollowed,
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: _isFollowed
+                                              ? Colors.grey[400]
+                                              : Colors.pinkAccent,
+                                          foregroundColor: Colors.white,
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(6),
+                                          )),
+                                      // child: Text(_isFollowed ? '取关' : '+关注'),
+                                      child: _isFollowed
+                                          ? Center(
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(
+                                                      Icons
+                                                          .format_list_bulleted,
+                                                      color: Colors.grey[600]),
+                                                  const SizedBox(width: 3),
+                                                  Text('已关注',
+                                                      style: TextStyle(
+                                                          color:
+                                                              Colors.grey[600],
+                                                          fontWeight:
+                                                              FontWeight.w900)),
+                                                ],
+                                              ),
+                                            )
+                                          : Center(
+                                              child: Row(
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
+                                                children: [
+                                                  Icon(Icons.add,
+                                                      color: Colors.white),
+                                                  const SizedBox(width: 3),
+                                                  Text(
+                                                    '关注',
+                                                    style: TextStyle(
+                                                        fontWeight:
+                                                            FontWeight.w900),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                   // 用户名和简介
                   Padding(
                     padding: const EdgeInsets.symmetric(
@@ -171,7 +272,7 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                       Tab(text: '投稿'),
                     ],
                     indicatorWeight: 3,
-                    indicatorColor: Theme.of(context).primaryColor,
+                    indicatorColor: Colors.white,
                     labelColor: Colors.black,
                     unselectedLabelColor: Colors.grey,
                   ),
@@ -181,8 +282,8 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
           },
           body: TabBarView(
             children: [
-              _buildContentPage(Colors.red[200]!),
               _buildContentPage(Colors.green[200]!),
+              DynamicList(dynamics: Dynamic.dynamics()),
               _buildContentPage(Colors.blue[200]!),
             ],
           ),
@@ -191,6 +292,60 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
     );
   }
 
+  // 新增构建标题组件的方法
+  Widget _buildTitleWidget() {
+    return _isFollowed
+        ? Center(
+            child: Text(
+              '用户名用户名用户名',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.black,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          )
+        : InkWell(
+            onTap: () {
+              setState(() {
+                if (!_isFollowed) {
+                  _isFollowed = true;
+                }
+              });
+            },
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.pinkAccent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 12,
+                      // TODO: 通过网络获取实际用户头像
+                      backgroundImage:
+                          AssetImage('assets/user_info/user_avatar2.jpg'),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      '+关注',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+  }
+
+  // 创建用户数据栏
   Widget _buildStatItem(String value, String label) {
     return Column(
       children: [
@@ -237,7 +392,7 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
             top: 0,
             right: 0,
             child: Container(
-              color: Colors.white, // 添加背景防止文字穿透
+              color: Colors.transparent, // 添加透明背景防止文字穿透
               child: Text(
                 _isDescriptionExpanded ? '收起' : '详情',
                 style: TextStyle(
