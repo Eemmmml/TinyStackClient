@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
 
@@ -12,291 +15,340 @@ class VideoDetailPage extends StatefulWidget {
 }
 
 class _VideoDetailPageState extends State<VideoDetailPage> {
-  // 视频播放控制器
-  late VideoPlayerController _videoController;
-  bool _showControls = true;
-  bool _isPlaying = true;
+  late VideoPlayerController _videoPlayerController;
+  late ChewieController _chewieController;
+  static const double kScrollThreshold = 50; // 滑动阈值，可根据需要调整
+
+  // 是否全屏
   bool _isFullScreen = false;
 
+  // 是否显示控制组件
+  bool _showControls = true;
+
+  // 计时器,用来计时自动隐藏视频控制按钮
+  Timer? _hideControlsTimer;
+
+  // 页面滚动控制器
+  final ScrollController _scrollController = ScrollController();
+
+  // AppBar 的透明度
+  double _appBarOpacity = 0.0;
 
   @override
   void initState() {
     super.initState();
-    // TODO: 从后台服务端获取视频资源
-    _videoController = VideoPlayerController.asset('assets/videos/test.mp4')..initialize()
-        .then((_) {
-       setState(() {
+    _videoPlayerController =
+        VideoPlayerController.asset('assets/videos/test.mp4');
+    _chewieController = ChewieController(
+      videoPlayerController: _videoPlayerController,
+      aspectRatio: 16 / 9,
+      autoInitialize: true,
+      autoPlay: true,
+      looping: false,
+      // 隐藏默认控制栏
+      showControls: false,
+      materialProgressColors: ChewieProgressColors(
+        playedColor: Colors.red,
+        handleColor: Colors.white,
+        backgroundColor: Color.fromRGBO(211, 211, 211, 0.3),
+        bufferedColor: Color.fromRGBO(211, 211, 211, 0.1),
+      ),
+      placeholder: const Center(child: CircularProgressIndicator()),
+      fullScreenByDefault: false,
+      errorBuilder: (context, error) => const Center(child: Text('视频加载失败')),
+    );
+    _videoPlayerController.addListener(_handleVideoPlayerListener);
 
-       });
-       _videoController.play();
-    })..addListener(_videoListener);
+    // 启动隐藏视频控制按钮计时器
+    _startHideControlsTimer();
+
+    // 为页面滚动控制器添加监听器
+    _scrollController.addListener(_handleScroll);
   }
 
+  void _handleVideoPlayerListener() {
+    if (_videoPlayerController.value.isInitialized && mounted) {
+      setState(() {});
+    }
+  }
 
-  // 视频播放监听器
-  void _videoListener() {
-    if (_videoController.value.isPlaying != _isPlaying) {
+  // 处理页面滚动
+  void _handleScroll() {
+    setState(() {
+      double offset = _scrollController.offset;
+      _appBarOpacity = offset > 0 ? (offset - kScrollThreshold) / 100.0 : 0.0;
+      if (_appBarOpacity > 1.0) {
+        _appBarOpacity = 1.0;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController.removeListener(_handleVideoPlayerListener);
+    _videoPlayerController.dispose();
+    _chewieController.dispose();
+    _hideControlsTimer?.cancel();
+    super.dispose();
+  }
+
+  void _toggleFullScreen() {
+    setState(() {
+      _isFullScreen = !_isFullScreen;
+      _chewieController.toggleFullScreen();
+    });
+  }
+
+  // 切换视频播放和暂停
+  void _togglePlayPause() {
+    if (_videoPlayerController.value.isPlaying) {
+      _videoPlayerController.pause();
+    } else {
+      _videoPlayerController.play();
+    }
+  }
+
+  // 启动自动隐藏控制按钮计时器
+  void _startHideControlsTimer() {
+    _hideControlsTimer?.cancel();
+    _hideControlsTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() {
+          _showControls = false;
+        });
+      }
+    });
+  }
+
+  // 重启自动隐藏控制按钮计时器
+  void _restartHideControlsTimer() {
+    _startHideControlsTimer();
+    if (!_showControls) {
       setState(() {
-        _isPlaying = _videoController.value.isPlaying;
+        _showControls = true;
       });
     }
   }
 
-
-  @override
-  void dispose() {
-    _videoController.removeListener(_videoListener);
-    _videoController.dispose();
-    super.dispose();
+  // 格式化时间
+  String _formatDuration(Duration duration) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String twoDigitMinutes = twoDigits(duration.inMinutes.remainder(60));
+    String twoDigitSeconds = twoDigits(duration.inSeconds.remainder(60));
+    return '${twoDigits(duration.inHours)}:$twoDigitMinutes:$twoDigitSeconds';
   }
-
 
   @override
   Widget build(BuildContext context) {
-    return _isFullScreen ? _buildFullScreenPlayer() : DefaultTabController(
-      length: 2,
-      child: Scaffold(
-        body: NestedScrollView(
-          headerSliverBuilder: (BuildContext context, bool innerBoxIsScrolled) {
-            return [
-              // 视频播放部分
-              SliverToBoxAdapter(
-                child: _buildVideoPlayer(),
+    return _isFullScreen
+        ? Scaffold(body: _buildFullScreenPlayer())
+        : DefaultTabController(
+            length: 2,
+            child: Scaffold(
+              body: NestedScrollView(
+                controller: _scrollController,
+                headerSliverBuilder: (context, innerBoxIsScrolled) {
+                  return [
+                    if (_scrollController.hasClients &&
+                        _scrollController.offset > kScrollThreshold)
+                      SliverAppBar(
+                        leadingWidth: 100,
+                        toolbarHeight: 40,
+                        backgroundColor:
+                            Color.fromRGBO(255, 64, 129, _appBarOpacity),
+                        elevation: 0,
+                        pinned: true,
+                        leading: Row(
+                          children: [
+                            IconButton(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: -20),
+                              icon: const Icon(Icons.arrow_back,
+                                  color: Colors.white),
+                              onPressed: () {
+                                // TODO: 实现返回点击逻辑
+                              },
+                            ),
+                            IconButton(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: -20),
+                              icon: const Icon(Icons.home_outlined,
+                                  color: Colors.white),
+                              onPressed: () {
+                                // TODO: 实现主页单点击逻辑
+                              },
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          IconButton(
+                            padding: const EdgeInsets.only(bottom: -20),
+                            icon: const Icon(Icons.search, color: Colors.white),
+                            onPressed: () {
+                              // TODO: 实现搜索点击逻辑
+                            },
+                          ),
+                        ],
+                      ),
+                    SliverToBoxAdapter(
+                      child: AspectRatio(
+                        aspectRatio: _chewieController.aspectRatio ?? 16 / 9,
+                        child: GestureDetector(
+                          onTap: () {
+                            if (_showControls) {
+                              _showControls = !_showControls;
+                              setState(() {
+                                _hideControlsTimer?.cancel();
+                              });
+                            } else {
+                              _restartHideControlsTimer();
+                            }
+                          },
+                          child: Stack(
+                            children: [
+                              // 视频组件
+                              Chewie(controller: _chewieController),
+                              // 进度条组件
+                              if (_showControls)
+                                Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: _buildTopControls(),
+                                ),
+                              if (_showControls)
+                                Positioned(
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  child: _buildCustomControls(),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _StickyTabBarDelegate(
+                        child: TabBar(
+                          indicatorColor: Theme.of(context).colorScheme.primary,
+                          labelColor: Colors.black,
+                          unselectedLabelColor: Colors.grey,
+                          tabs: const [Tab(text: '简介'), Tab(text: '评论')],
+                        ),
+                      ),
+                    ),
+                  ];
+                },
+                body: const TabBarView(
+                  children: [VideoInfoPage(), CommentPage()],
+                ),
               ),
-              // 吸顶 Tab 栏
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _StickyTabBarDelegate(
-                    child: TabBar(
-                      // 指示器颜色
-                      indicatorColor: Colors.blue,
-                      // 选中标签颜色
-                      labelColor: Colors.black,
-                      // 未选中标签的颜色
-                      unselectedLabelColor: Colors.grey,
-                      tabs: const [
-                        Tab(text: '简介'),
-                        Tab(text: '评论'),
-                      ],
-                    )),
-              ),
-            ];
+            ),
+          );
+  }
+
+  Widget _buildTopControls() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        IconButton(
+          icon:
+              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          onPressed: () {
+            // TODO: 实现返回逻辑
           },
-          body: TabBarView(
-            children: [
-              // 简介页面
-              VideoInfoPage(),
-              // Container(
-              //   color: Colors.green,
-              //   child: ListView(
-              //     children: [
-              //       const Padding(
-              //         padding: EdgeInsets.all(16),
-              //         child: Text('视频简介', style: TextStyle(fontSize: 20)),
-              //       ),
-              //       Container(
-              //         // 占位高度
-              //         height: 800,
-              //         color: Colors.green[200],
-              //       ),
-              //     ],
-              //   ),
-              // ),
-
-              // 评论页面
-              CommentPage(),
-            ],
-          ),
         ),
-      ),
+        IconButton(
+          icon: const Icon(Icons.more_vert, color: Colors.white),
+          onPressed: () {
+            // TODO: 实现更多操作逻辑
+          },
+        ),
+      ],
     );
   }
 
-
-  // 构建视频播放器
-  Widget _buildVideoPlayer() {
-    return AspectRatio(
-      aspectRatio: _videoController.value.aspectRatio,
-      child: GestureDetector(
-        onTap: () => setState(() {
-          _showControls = !_showControls;
-        }),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            VideoPlayer(_videoController),
-            if (_showControls) _buildVideoControls(),
-            if (!_videoController.value.isInitialized)
-              const CircularProgressIndicator(),
-          ],
-        ),
-      ),
-    );
-  }
-
-
-  // 构建视频控制
-  Widget _buildVideoControls() {
-    return AnimatedOpacity(
-      opacity: _showControls ? 1 : 0,
-      duration: const Duration(milliseconds: 400),
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.black54, Colors.transparent]
+  // 构建自定义的控制组件
+  Widget _buildCustomControls() {
+    return Container(
+      color: Color.fromRGBO(0, 0, 0, 0.5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      child: Row(
+        children: [
+          IconButton(
+            icon: Icon(
+              _videoPlayerController.value.isPlaying
+                  ? Icons.pause
+                  : Icons.play_arrow,
+              color: Colors.white,
+            ),
+            onPressed: _togglePlayPause,
           ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            AppBar(
-              backgroundColor: Colors.transparent,
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back),
-                onPressed: () => Navigator.pop(context),
+          Expanded(
+            child: VideoProgressIndicator(
+              _videoPlayerController,
+              allowScrubbing: true,
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              colors: const VideoProgressColors(
+                playedColor: Colors.red,
+                bufferedColor: Colors.grey,
+                backgroundColor: Colors.white24,
               ),
-              actions: [
-                IconButton(
-                  icon: const Icon(Icons.fullscreen),
-                  onPressed: _toggleFullScreen,
-                ),
-              ],
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    _videoController.value.isPlaying ? Icons.pause : Icons.play_arrow
-                  ),
-                  onPressed: _togglePlayPause,
-                ),
-              ],
-            ),
-            _buildProgressBar(),
-          ],
-        ),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '${_formatDuration(_videoPlayerController.value.position)} / ${_formatDuration(_videoPlayerController.value.duration)}',
+            style: const TextStyle(color: Colors.white),
+          ),
+          IconButton(
+            icon: const Icon(Icons.fullscreen, color: Colors.white),
+            onPressed: _toggleFullScreen,
+          ),
+        ],
       ),
     );
   }
 
-
-  // 构建进度条
-  Widget _buildProgressBar() {
-    return VideoProgressIndicator(
-      _videoController,
-      allowScrubbing: true,
-      padding: const EdgeInsets.all(8),
-      colors: const VideoProgressColors(
-        playedColor: Colors.red,
-        bufferedColor: Colors.grey,
-        backgroundColor: Colors.white24,
-      ),
-    );
-  }
-
-
-  // 转换播放暂停和开始状态
-  void _togglePlayPause() {
-    setState(() {
-      _videoController.value.isPlaying ? _videoController.pause() : _videoController.play();
-    });
-  }
-
-
-  // 转换全屏和缩小化视图
-  void _toggleFullScreen() {
-    setState(() {
-      _isFullScreen = !_isFullScreen;
-    });
-    if (_isFullScreen) {
-    // 锁定竖屏（需要导入services库）
-      // SystemChrome.setPreferredOrientations([
-      //   DeviceOrientation.landscapeLeft,
-      //   DeviceOrientation.landscapeRight,
-      // ]);
-    } else {
-      // SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    }
-  }
-
-
-
-// 构建全屏播放器
   Widget _buildFullScreenPlayer() {
     return Scaffold(
-      body: GestureDetector(
-        onTap: () {
-          setState(() {
-            _showControls = !_showControls;
-          });
-        },
-        child: Stack(
-          children: [
-            Center(
-              child: AspectRatio(
-                aspectRatio: _videoController.value.aspectRatio,
-                child: VideoPlayer(_videoController),
-              ),
-            ),
-            if (_showControls) _buildFullScreenPlayer()
-          ],
-        ),
-      ),
-    );
-  }
-
-
-  // 构建全屏控制
-  Widget _buildFullScreenControls() {
-    return AnimatedOpacity(
-      opacity: _showControls ? 1 : 0,
-      duration: const Duration(milliseconds: 300),
-      child: Container(
-        color: Colors.black54,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            AppBar(
-              backgroundColor: Colors.transparent,
-              leading: IconButton(
-                icon: const Icon(Icons.fullscreen_exit),
-                onPressed: _toggleFullScreen,
-              ),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+      body: Stack(
+        children: [
+          Chewie(controller: _chewieController),
+          SafeArea(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
-                  icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow),
-                  onPressed: _togglePlayPause,
+                  icon: const Icon(Icons.arrow_back_ios),
+                  color: Colors.white,
+                  onPressed: _toggleFullScreen,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.more_vert),
+                  color: Colors.white,
+                  onPressed: () {},
                 ),
               ],
             ),
-            _buildProgressBar(),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-
-
-
-// 自定义吸顶 Tab 栏实现
 class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
   final TabBar child;
 
-  _StickyTabBarDelegate({required this.child});
+  const _StickyTabBarDelegate({required this.child});
 
   @override
   Widget build(
       BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
-      // Tab 背景颜色
       color: Colors.white,
       child: child,
     );
@@ -310,6 +362,6 @@ class _StickyTabBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
-    return false;
+    return oldDelegate != this;
   }
 }

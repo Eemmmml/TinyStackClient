@@ -34,24 +34,7 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
     );
   }
 
-  // @override
-  // Widget build(BuildContext context) {
-  //   return Scaffold(
-  //     body: CustomScrollView(
-  //       slivers: [
-  //         SliverList(
-  //           delegate: SliverChildListDelegate([
-  //             _buildUploaderInfo(),
-  //             _buildCollapsibleSection(),
-  //           ]),
-  //         ),
-  //         SliverToBoxAdapter(
-  //           child: _buildVideoList(),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
+
 
   // 构建 UP 主信息组件
   Widget _buildUploaderInfo() {
