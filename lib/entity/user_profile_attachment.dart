@@ -44,8 +44,8 @@ class Dynamic {
   final List<Attachment> attachments;
   final int shareCount;
   final int commentCount;
-   int likeCount;
-   bool isLiked;
+  int likeCount;
+  bool isLiked;
 
   Dynamic({
     required this.user,
@@ -155,6 +155,57 @@ class Dynamic {
           Attachment.image([
             'https://picsum.photos/200/300',
           ]),
+        ],
+        shareCount: 42,
+        commentCount: 15,
+        likeCount: 88,
+      ),
+      Dynamic(
+        user: User(
+          id: '1',
+          username: 'Flutter 开发者',
+          avatarUrl: 'assets/user_info/user_avatar1.jpg',
+        ),
+        publishTime: DateTime.now().subtract(const Duration(hours: 2)),
+        content:
+            '这是一个示例动态内容，包含一个很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长的文本',
+        attachments: [
+          Attachment.quote(
+            Dynamic(
+              user: User(
+                id: '1',
+                username: 'Flutter 开发者',
+                avatarUrl: 'assets/user_info/user_avatar1.jpg',
+              ),
+              publishTime: DateTime.now().subtract(const Duration(hours: 2)),
+              content:
+                  '这是一个示例动态内容，包含一个很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长的文本',
+              attachments: [
+                Attachment.image([
+                  'https://picsum.photos/200/300',
+                ]),
+              ],
+              shareCount: 42,
+              commentCount: 15,
+              likeCount: 88,
+            ),
+          ),
+        ],
+        shareCount: 42,
+        commentCount: 15,
+        likeCount: 88,
+      ),
+      Dynamic(
+        user: User(
+          id: '1',
+          username: 'Flutter 开发者',
+          avatarUrl: 'assets/user_info/user_avatar1.jpg',
+        ),
+        publishTime: DateTime.now().subtract(const Duration(hours: 2)),
+        content:
+            '这是一个示例动态内容，包含一个很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长的文本',
+        attachments: [
+          Attachment.video('assets/user_background.png'),
         ],
         shareCount: 42,
         commentCount: 15,

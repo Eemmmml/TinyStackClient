@@ -54,6 +54,7 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
             return [
               // 新增的动态 AppBar
               SliverAppBar(
+                leadingWidth: 60,
                 expandedHeight: 160,
                 pinned: true,
                 floating: false,
@@ -100,21 +101,64 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                   duration: Duration(milliseconds: 200),
                   child: _buildTitleWidget(),
                 ),
-                leading: IconButton(
-                  icon: Icon(Icons.arrow_back_ios_new_rounded,
-                      color: Colors.blue),
-                  onPressed: () {
-                    // TODO: 实现按钮的返回逻辑
-                    Navigator.of(context).pop();
-                  },
-                ),
-                actions: _showFullAppBar
+                leading: !_showFullAppBar
+                    ? Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                        width: 20,
+                        // 实际生效的容器尺寸（直径）
+                        height: 20,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Color.fromRGBO(0, 0, 0, 0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          iconSize: 16,
+                          // 实际图标尺寸
+                          padding: EdgeInsets.all(8),
+                          // 关键：通过 padding 控制热区
+                          constraints: BoxConstraints(
+                            minWidth: 0, // 必须重置最小约束
+                            minHeight: 0,
+                          ),
+                          splashRadius: 20,
+                          // 水波纹与容器尺寸匹配
+                          icon: Icon(Icons.arrow_back_ios_new_rounded,
+                              color: Colors.white),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      )
+                    : IconButton(
+                        icon: Icon(Icons.arrow_back_ios_new_rounded,
+                            color: Colors.blue),
+                        onPressed: () {},
+                      ),
+                actions: !_showFullAppBar
                     ? [
-                        IconButton(
-                          icon: Icon(Icons.more_vert, color: Colors.blue),
-                          onPressed: () {
-                            // TODO: 实现按钮点击逻辑
-                          },
+                        Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 10),
+                          width: 40,
+                          // 实际生效的容器尺寸（直径）
+                          height: 40,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: Color.fromRGBO(0, 0, 0, 0.5),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            iconSize: 16,
+                            // 实际图标尺寸
+                            padding: EdgeInsets.all(8),
+                            // 关键：通过 padding 控制热区
+                            constraints: BoxConstraints(
+                              minWidth: 0, // 必须重置最小约束
+                              minHeight: 0,
+                            ),
+                            splashRadius: 20,
+                            // 水波纹与容器尺寸匹配
+                            icon: Icon(Icons.more_vert, color: Colors.white),
+                            onPressed: () => Navigator.pop(context),
+                          ),
                         ),
                       ]
                     : [
@@ -272,7 +316,7 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                       Tab(text: '投稿'),
                     ],
                     indicatorWeight: 3,
-                    indicatorColor: Colors.white,
+                    indicatorColor: Colors.pinkAccent,
                     labelColor: Colors.black,
                     unselectedLabelColor: Colors.grey,
                   ),
