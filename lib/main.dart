@@ -9,6 +9,9 @@ import 'pages/user_pages/profile_page.dart';
 import 'provider/theme_provider.dart';
 
 void main() {
+  // debugPaintSizeEnabled = true;
+  // debugPaintLayerBordersEnabled = true;
+
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   SystemChrome.setPreferredOrientations(

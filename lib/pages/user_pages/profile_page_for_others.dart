@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tinystack/entity/user_profile_attachment.dart';
 
 import 'profile_page_for_others_attachment_page.dart';
+import 'user_post_page.dart';
 
 class ProfilePageForOthers extends StatefulWidget {
   const ProfilePageForOthers({super.key});
@@ -328,7 +329,7 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
             children: [
               _buildContentPage(Colors.green[200]!),
               DynamicList(dynamics: Dynamic.dynamics()),
-              _buildContentPage(Colors.blue[200]!),
+              UserPostsPage(),
             ],
           ),
         ),
