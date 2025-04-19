@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:chewie/chewie.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:video_player/video_player.dart';
 
 import 'comment_page.dart';
@@ -89,14 +90,34 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
     _videoPlayerController.dispose();
     _chewieController.dispose();
     _hideControlsTimer?.cancel();
+
+    // 退出时回复默认的屏幕方向
+    SystemChrome.setPreferredOrientations(
+        [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
     super.dispose();
   }
 
-  void _toggleFullScreen() {
+  void _toggleFullScreen() async {
     setState(() {
       _isFullScreen = !_isFullScreen;
-      _chewieController.toggleFullScreen();
     });
+
+    if (_isFullScreen) {
+      // 进入全屏时将应用的显示方向设置为横屏
+      await SystemChrome.setPreferredOrientations(
+          [DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+    } else {
+      // 退出全屏时将应用的显示方向设置为竖屏
+      await SystemChrome.setPreferredOrientations(
+          [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+    }
+    await Future.delayed(const Duration(milliseconds: 200));
+    if (mounted) {
+      setState(() {});
+    }
+
+    // _chewieController.toggleFullScreen();
+    _restartHideControlsTimer();
   }
 
   // 切换视频播放和暂停
@@ -214,7 +235,7 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                                   top: 0,
                                   left: 0,
                                   right: 0,
-                                  child: _buildTopControls(),
+                                  child: _buildTopControls(Colors.white),
                                 ),
                               if (_showControls)
                                 Positioned(
@@ -249,19 +270,20 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
           );
   }
 
-  Widget _buildTopControls() {
+  Widget _buildTopControls(Color? iconColor) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         IconButton(
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          icon: Icon(Icons.arrow_back_ios_new_rounded,
+              color: iconColor ?? Colors.white),
           onPressed: () {
             // TODO: 实现返回逻辑
+            Navigator.of(context).pop();
           },
         ),
         IconButton(
-          icon: const Icon(Icons.more_vert, color: Colors.white),
+          icon: Icon(Icons.more_vert, color: iconColor ?? Colors.white),
           onPressed: () {
             // TODO: 实现更多操作逻辑
           },
@@ -314,29 +336,59 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
 
   Widget _buildFullScreenPlayer() {
     return Scaffold(
-      body: Stack(
+        body: GestureDetector(
+      onTap: () {
+        if (_showControls) {
+          _showControls = !_showControls;
+          setState(() {
+            _hideControlsTimer?.cancel();
+          });
+        } else {
+          _restartHideControlsTimer();
+        }
+      },
+      child: Stack(
         children: [
-          Chewie(controller: _chewieController),
-          SafeArea(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_back_ios),
-                  color: Colors.white,
-                  onPressed: _toggleFullScreen,
-                ),
-                IconButton(
-                  icon: const Icon(Icons.more_vert),
-                  color: Colors.white,
-                  onPressed: () {},
-                ),
-              ],
-            ),
+          Container(
+            color: Colors.black,
           ),
+          Chewie(controller: _chewieController),
+          // 顶部左侧按钮
+          if (_showControls)
+            Positioned(
+              top: 0,
+              left: 0,
+              child: IconButton(
+                icon:
+                    Icon(Icons.arrow_back_ios_new_rounded, color: Colors.blue),
+                onPressed: () {
+                  _toggleFullScreen();
+                },
+              ),
+            ),
+          // 顶部右侧按钮
+          if (_showControls)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: IconButton(
+                icon: Icon(Icons.more_vert, color: Colors.blue),
+                onPressed: () {
+                  // TODO: 实现按钮点击逻辑
+                },
+              ),
+            ),
+          // 底部进度条等控制按钮
+          if (_showControls)
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _buildCustomControls(),
+            ),
         ],
       ),
-    );
+    ));
   }
 }
 
