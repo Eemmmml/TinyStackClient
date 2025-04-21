@@ -95,85 +95,90 @@ class ImageTextPostCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // 图片区域
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
-            ),
-            child: AspectRatio(
-              aspectRatio: post.aspectRatio,
-              child: Stack(
-                children: [
-                  // 图片
-                  Image.network(post.imageUrl, fit: BoxFit.cover),
+    return InkWell(
+      onTap: () {
+        print('点击Card');
+      },
+      child: Card(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // 图片区域
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+              ),
+              child: AspectRatio(
+                aspectRatio: post.aspectRatio,
+                child: Stack(
+                  children: [
+                    // 图片
+                    Image.network(post.imageUrl, fit: BoxFit.cover),
 
-                  // 底部渐变遮罩
-                  Positioned.fill(
-                    child: Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        height: 80,
-                        decoration: BoxDecoration(
-                            borderRadius:
-                                BorderRadius.vertical(top: Radius.circular(8)),
-                            gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                                colors: [
-                                  Color.fromRGBO(0, 0, 0, 0.8),
-                                  Colors.transparent,
-                                ])),
+                    // 底部渐变遮罩
+                    Positioned.fill(
+                      child: Align(
+                        alignment: Alignment.bottomCenter,
+                        child: Container(
+                          height: 80,
+                          decoration: BoxDecoration(
+                              borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(8)),
+                              gradient: LinearGradient(
+                                  begin: Alignment.bottomCenter,
+                                  end: Alignment.topCenter,
+                                  colors: [
+                                    Color.fromRGBO(0, 0, 0, 0.8),
+                                    Colors.transparent,
+                                  ])),
+                        ),
                       ),
                     ),
-                  ),
 
-                  // 点赞数区域
-                  Positioned(
-                    left: 8,
-                    bottom: 8,
-                    child: Row(
-                      children: [
-                        Icon(Icons.thumb_up_alt_outlined,
-                            color: Colors.white, size: 20),
-                        const SizedBox(width: 4),
-                        Text(
-                          post.likes.toString(),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                    // 点赞数区域
+                    Positioned(
+                      left: 8,
+                      bottom: 8,
+                      child: Row(
+                        children: [
+                          Icon(Icons.thumb_up_alt_outlined,
+                              color: Colors.white, size: 20),
+                          const SizedBox(width: 4),
+                          Text(
+                            post.likes.toString(),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
 
-          // 标题区域
-          Padding(
-            padding: const EdgeInsets.all(8),
-            child: Text(
-              post.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
+            // 标题区域
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                post.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

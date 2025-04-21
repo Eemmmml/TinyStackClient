@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:tinystack/entity/user_profile_attachment.dart';
 
 import 'profile_page_for_others_attachment_page.dart';
+import 'user_main_page.dart';
 import 'user_post_page.dart';
 
 class ProfilePageForOthers extends StatefulWidget {
@@ -327,7 +328,7 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
           },
           body: TabBarView(
             children: [
-              _buildContentPage(Colors.green[200]!),
+              UserMainPage(),
               DynamicList(dynamics: Dynamic.dynamics()),
               UserPostsPage(),
             ],
