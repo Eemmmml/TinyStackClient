@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'search_result_page.dart';
+
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
@@ -113,6 +115,9 @@ class _SearchPageState extends State<SearchPage> {
           .map((history) => GestureDetector(
                 onTap: () {
                   // TODO: 处理点击搜索事件
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) =>
+                          SearchResultsPage(initialKeyword: '西瓜')));
                 },
                 child: Container(
                   padding:
@@ -144,6 +149,9 @@ class _SearchPageState extends State<SearchPage> {
                 title: Text(suggestion),
                 onTap: () {
                   // TODO: 填充建议内容并搜索
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) =>
+                          SearchResultsPage(initialKeyword: '西瓜')));
                 },
               ))
           .toList(),
@@ -159,6 +167,9 @@ class _SearchPageState extends State<SearchPage> {
                 title: Text(hotElement),
                 onTap: () {
                   // TODO: 填充搜索内容并搜索
+                  Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) =>
+                          SearchResultsPage(initialKeyword: '西瓜')));
                 },
               ))
           .toList(),

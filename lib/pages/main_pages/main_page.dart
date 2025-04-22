@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../search_page.dart';
+import '../search_pages/search_page.dart';
 import 'recommendation_page.dart';
 
 class MainPage extends StatefulWidget {
