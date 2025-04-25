@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 
-import '../entity/chat_item.dart';
+import '../../entity/chat_item.dart';
+import 'chat_page.dart';
 
-class ChatPage extends StatefulWidget {
-  const ChatPage({super.key});
+class ChatListPage extends StatefulWidget {
+  const ChatListPage({super.key});
 
   @override
-  State<ChatPage> createState() => _ChatPageState();
+  State<ChatListPage> createState() => _ChatListPageState();
 }
 
-class _ChatPageState extends State<ChatPage> {
+class _ChatListPageState extends State<ChatListPage> {
   // 聊天数据实体
   List<ChatItem> myChatItems = ChatItem.chatItems;
 
@@ -102,6 +103,16 @@ class ChatListItem extends StatelessWidget {
       ),
       onTap: () {
         // TODO: 实现点击跳转聊天页面
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (context) => ChatPage(
+                currentChat: ChatItem(
+                    id: '1',
+                    name: '群聊1',
+                    isGroup: true,
+                    avatarUrl: 'https://picsum.photos/200/200?random=2',
+                    lastMessage: '',
+                    time: '',
+                    unreadCount: 0))));
       },
     );
   }

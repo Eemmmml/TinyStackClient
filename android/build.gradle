@@ -1,3 +1,59 @@
+//allprojects {
+//    repositories {
+//        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+//        maven { url 'https://maven.aliyun.com/repository/central' } // 关键！
+//        maven { url 'https://maven.aliyun.com/repository/google' }
+//        maven { url 'https://maven.aliyun.com/repository/jcenter' }
+//        maven { url 'https://maven.aliyun.com/nexus/content/groups/public' }
+//        maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
+//        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+//        google()
+////        mavenCentral()
+//    }
+//}
+//
+//buildscript {
+////    ext.kotlin_version = '1.9.0' // 确保 Kotlin 版本兼容
+//    ext.kotlin_version = '1.8.22' // 确保 Kotlin 版本兼容
+//    // delete
+////    ext {
+////        agpVersion = "7.4.2"  // 强制指定 AGP 版本
+////        kotlin_version = "1.8.22"  // 匹配 Kotlin 版本
+////    }
+//
+//    repositories {
+//        maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
+//        maven { url 'https://maven.aliyun.com/repository/central' } // 关键！
+//        maven { url 'https://maven.aliyun.com/repository/google' }
+//        maven { url 'https://maven.aliyun.com/repository/jcenter' }
+//        maven { url 'https://maven.aliyun.com/nexus/content/groups/public' }
+//        maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
+//        maven { url 'https://repo.huaweicloud.com/repository/maven/' }
+//        // 保留原仓库（可选）
+//        google()
+//        //jcenter()
+////        mavenCentral()
+//    }
+//
+//    dependencies {
+//        classpath 'com.android.tools.build:gradle:8.2.1' // 升级到 8.2.1 或更高
+////        classpath 'com.android.tools.build:gradle:7.6.3' // 升级到 8.2.1 或更高
+//        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+//    }
+//
+//}
+//
+//rootProject.buildDir = "../build"
+//subprojects {
+//    project.buildDir = "${rootProject.buildDir}/${project.name}"
+//}
+//subprojects {
+//    project.evaluationDependsOn(":app")
+//}
+//
+//tasks.register("clean", Delete) {
+//    delete rootProject.buildDir
+//}
 allprojects {
     repositories {
         maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
@@ -8,14 +64,15 @@ allprojects {
         maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
         maven { url 'https://repo.huaweicloud.com/repository/maven/' }
         google()
-//        mavenCentral()
+        mavenCentral()
     }
 }
 
 buildscript {
-    ext.kotlin_version = '1.9.0' // 确保 Kotlin 版本兼容
+    ext.kotlin_version = '1.9.20' // 确保 Kotlin 版本兼容
 
     repositories {
+        // 保留原仓库（可选）
         maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
         maven { url 'https://maven.aliyun.com/repository/central' } // 关键！
         maven { url 'https://maven.aliyun.com/repository/google' }
@@ -23,14 +80,15 @@ buildscript {
         maven { url 'https://maven.aliyun.com/nexus/content/groups/public' }
         maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
         maven { url 'https://repo.huaweicloud.com/repository/maven/' }
-        // 保留原仓库（可选）
         google()
         //jcenter()
-//        mavenCentral()
+        mavenCentral()
     }
 
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.2.1' // 升级到 8.2.1 或更高
+        classpath 'com.android.tools.build:gradle:8.1.0' // 最新稳定版
+//        classpath 'com.android.tools.build:gradle:7.4.2'
+//        classpath 'com.android.tools.build:gradle:8.2.0' // 升级到 8.2.1 或更高
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
     }
 

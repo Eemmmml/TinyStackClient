@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
-import 'pages/chat_page.dart';
+import 'pages/chat_pages/chat_list_page.dart';
 import 'pages/main_pages/main_page.dart';
 import 'pages/user_pages/profile_page.dart';
 import 'provider/theme_provider.dart';
@@ -70,7 +70,7 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
 
   // TODO: 添加各个页面的实例
-  final List<Widget> _pages = [MainPage(), ChatPage(), ProfilePage()];
+  final List<Widget> _pages = [MainPage(), ChatListPage(), ProfilePage()];
 
   @override
   Widget build(BuildContext context) {
