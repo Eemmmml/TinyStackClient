@@ -1,0 +1,1 @@
+/Users/eemmmml/Documents/development/android/tinystack/build/app/intermediates/cxx/Debug/5i55682q/obj/arm64-v8a
