@@ -24,25 +24,6 @@ class GroupItem {
   });
 }
 
-// class Member {
-//   final String id;
-//   final String name;
-//   final String avatarUrl;
-//
-//   // 用户标签
-//   final MemberRole tag;
-//
-//   // 用户名首字母
-//   final String inEnglishWord;
-//
-//   Member({
-//     required this.id,
-//     required this.name,
-//     required this.avatarUrl,
-//     this.tag = MemberRole.member,
-//     this.inEnglishWord = 'A',
-//   });
-// }
 
 // 修改后的Member模型
 class Member {

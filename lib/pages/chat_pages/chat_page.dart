@@ -1,9 +1,11 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:tinystack/entity/group_item.dart';
 
 import '../../entity/chat_item.dart';
@@ -386,72 +388,42 @@ class _ChatPageState extends State<ChatPage> {
           // 上传中的状态
           return _buildUploadingState(message);
         }
-        return ClipRRect(
-          borderRadius: _getContentRadius(message),
-          child: InkWell(
-            onTap: () => _openImageDetail(context, message.content),
-            child: Hero(
-              tag: 'image_hero_${message.id}',
-              flightShuttleBuilder: (flightContext, animation, flightDirection,
-                  flightHeroContext, toHeroContext) {
-                final Image heroImage =
-                    Image.network(message.content, fit: BoxFit.cover);
+        final aspectRatio = _calculateAspectRatio(message);
 
-                return AnimatedBuilder(
-                  animation: animation,
-                  builder: (context, child) {
-                    final curvedValue =
-                        Curves.easeInOutCubic.transform(animation.value);
-
-                    return Material(
-                      color: Colors.transparent,
-                      child: Stack(
-                        children: [
-                          // 背景蒙版动画
-                          Container(
-                            color: Color.fromRGBO(0, 0, 0, curvedValue * 0.9),
-                          ),
-                          // 图片缩放动画
-                          Transform.scale(
-                            scale: Tween<double>(begin: 1.0, end: 1.05)
-                                .transform(curvedValue),
-                            child: Opacity(
-                              opacity: Tween<double>(begin: 1.0, end: 0.8)
-                                  .transform(curvedValue),
-                              child: heroImage,
-                            ),
-                          ),
-                        ],
-                      ),
+        return _ImageBubbleWrapper(
+          aspectRatio: aspectRatio,
+          child: ClipRRect(
+            borderRadius: _getContentRadius(message),
+            child: InkWell(
+              onTap: () => _openImageDetail(context, message.content),
+              child: Hero(
+                tag: 'image_hero_${message.id}',
+                child: Image.network(
+                  message.content,
+                  fit: BoxFit.cover,
+                  frameBuilder:
+                      (context, child, frame, wasSynchronouslyLoaded) {
+                    if (wasSynchronouslyLoaded) return child;
+                    return AnimatedOpacity(
+                      opacity: frame == null ? 0 : 1,
+                      duration: const Duration(milliseconds: 300),
+                      child: child,
                     );
                   },
-                  child: heroImage,
-                );
-              },
-              child: Image.network(
-                message.content,
-                width: double.infinity,
-                height: 180,
-                fit: BoxFit.cover,
-                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-                  // 图片加载渐显动画
-                  if (wasSynchronouslyLoaded) return child;
-                  return AnimatedOpacity(
-                    opacity: frame == null ? 0 : 1,
-                    duration: const Duration(milliseconds: 300),
-                    curve: Curves.easeOut,
-                    child: child,
-                  );
-                },
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  // 统一加载进度组件
-                  return _buildLoadingProgress(loadingProgress);
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  // 错误状态
-                  return _buildErrorState(message);
-                },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return _ImageBubbleWrapper(
+                      aspectRatio: aspectRatio,
+                      child: _buildLoadingState(message, loadingProgress),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return _ImageBubbleWrapper(
+                      aspectRatio: aspectRatio,
+                      child: _buildErrorState(message),
+                    );
+                  },
+                ),
               ),
             ),
           ),
@@ -498,94 +470,6 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  // 加载进度组件
-  Widget _buildLoadingProgress(ImageChunkEvent progress) {
-    return Container(
-      height: 180,
-      color: Colors.grey[200],
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          CircularProgressIndicator(
-            value: progress.expectedTotalBytes != null
-                ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
-                : null,
-          ),
-          if (progress.expectedTotalBytes != null)
-            Positioned(
-              bottom: 10,
-              child: Text(
-                '${(progress.cumulativeBytesLoaded / 1024).toStringAsFixed(1)}KB/${(progress.expectedTotalBytes! / 1024).toStringAsFixed(1)}KB',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey[600],
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // 上传中的状态组件
-  Widget _buildUploadingState(ChatMessageItem message) {
-    return Container(
-      height: 180,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: _getContentRadius(message),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              CircularProgressIndicator(
-                value: message.progress,
-                strokeWidth: 2,
-              ),
-              if (message.progress != null)
-                Text(
-                  '${(message.progress! * 100).toStringAsFixed(0)}%',
-                  style: const TextStyle(fontSize: 12),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            '正在上传...',
-            style: TextStyle(
-              color: Colors.grey[600],
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 错误状态组件
-  Widget _buildErrorState(ChatMessageItem message) {
-    return Container(
-      height: 180,
-      decoration: BoxDecoration(
-        color: Colors.red[50],
-        borderRadius: _getContentRadius(message),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.error_outline_rounded, color: Colors.red[400], size: 40),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => _retryUpload(message),
-            child: const Text('重新选择并上传'),
-          ),
-        ],
-      ),
-    );
-  }
 
   // 模拟图片上传过程
   void _mockUploadImage(File file, ChatMessageItem message) async {
@@ -731,6 +615,11 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     for (final image in images) {
+      final imageFile = File(image.path);
+      // 解码图片获取尺寸
+      final bytes = await imageFile.readAsBytes();
+      final decodedImage = img.decodeImage(bytes);
+
       final tempImage = ChatMessageItem(
         id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
         // 先占位
@@ -740,6 +629,8 @@ class _ChatPageState extends State<ChatPage> {
         type: MessageType.image,
         status: MessageStatus.uploading,
         progress: 0,
+        width: decodedImage?.width,
+        height: decodedImage?.height,
       );
 
       _mockUploadImage(File(image.path), tempImage);
@@ -773,6 +664,213 @@ class _ChatPageState extends State<ChatPage> {
             // TODO: 实现点击逻辑
           },
         ),
+      ),
+    );
+  }
+
+  // 构建加载动画
+  Widget _buildLoadingProgress(
+      ImageChunkEvent progress, ChatMessageItem message) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: Container(
+        width:
+            message.width != null ? message.width as double : double.infinity,
+        height: message.height != null ? message.height as double : 180,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(
+              color: Colors.white,
+            ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Colors.blue),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '加载中...',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // 计算图片宽高比的方法
+  double _calculateAspectRatio(ChatMessageItem message) {
+    if (message.width != null && message.height != null) {
+      final w = message.width!.toDouble();
+      final h = message.height!.toDouble();
+      // return w > h ? w / h : h / w; // 保持比例在0.5-2之间
+      return w / h;
+    }
+    return 1.0; // 默认正方形
+  }
+
+// 修改加载状态组件
+  Widget _buildLoadingState(ChatMessageItem message, ImageChunkEvent progress) {
+    return Stack(
+      children: [
+        // 背景骨架屏
+        Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blue[50]!, Colors.grey[100]!],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Shimmer.fromColors(
+            baseColor: Colors.grey[300]!,
+            highlightColor: Colors.grey[100]!,
+            child: Container(color: Colors.white),
+          ),
+        ),
+        // 进度指示器
+        Center(
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircularProgressIndicator(
+                  value: progress.expectedTotalBytes != null
+                      ? progress.cumulativeBytesLoaded /
+                          progress.expectedTotalBytes!
+                      : null,
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation(Colors.white),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '加载中...',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+// 修改上传状态组件
+  Widget _buildUploadingState(ChatMessageItem message) {
+    return _ImageBubbleWrapper(
+      aspectRatio: _calculateAspectRatio(message),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.blue[50]!, Colors.purple[50]!],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: CircularProgressIndicator(
+                    value: message.progress,
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation(Colors.blue),
+                  ),
+                ),
+                Icon(Icons.cloud_upload, color: Colors.blue),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '上传中 ${(message.progress! * 100).toStringAsFixed(0)}%',
+              style: TextStyle(
+                color: Colors.blue[800],
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+// 修改错误状态组件
+  Widget _buildErrorState(ChatMessageItem message) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.red[50]!, Colors.orange[50]!],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline_rounded, size: 40, color: Colors.red[400]),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.red),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            onPressed: () => _retryUpload(message),
+            child: Text('重试上传', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 新增统一尺寸包装组件
+class _ImageBubbleWrapper extends StatelessWidget {
+  final double aspectRatio;
+  final Widget child;
+
+  const _ImageBubbleWrapper({
+    required this.aspectRatio,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxWidth: MediaQuery.of(context).size.width * 0.75,
+        maxHeight: MediaQuery.of(context).size.height * 0.6,
+      ),
+      child: AspectRatio(
+        aspectRatio: aspectRatio,
+        child: child,
       ),
     );
   }

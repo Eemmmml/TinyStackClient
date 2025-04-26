@@ -7,6 +7,8 @@ class ChatMessageItem {
   final String senderName;
   final MessageType type;
   final String avatarUrl;
+  final int? width;
+  final int? height;
 
   // 消息状态
   MessageStatus status;
@@ -24,6 +26,8 @@ class ChatMessageItem {
     this.avatarUrl = 'https://picsum.photos/200/200?random=4',
     this.status = MessageStatus.sent,
     this.progress,
+    this.width,
+    this.height,
   });
 }
 
@@ -82,6 +86,8 @@ List<ChatMessageItem> generateMockMessages() {
       senderId: 'user_456',
       senderName: 'Mike',
       type: MessageType.image,
+      width: 120,
+      height: 90,
     ),
 
     // 10分钟前的消息（触发时间分组）
@@ -143,6 +149,8 @@ List<ChatMessageItem> generateMockMessages() {
       senderId: currentUserId,
       senderName: 'No',
       type: MessageType.image,
+      width: 120,
+      height: 90,
     ),
 
     ChatMessageItem(
