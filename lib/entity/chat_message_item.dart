@@ -1,17 +1,18 @@
 // 聊天信息数据模型
 class ChatMessageItem {
   final String id;
-  final String content;
+  late String content;
   final DateTime timestamp;
   final String senderId;
   final String senderName;
   final MessageType type;
   final String avatarUrl;
+
   // 消息状态
   MessageStatus status;
+
   // 消息上传进度 0-1
   double? progress;
-
 
   ChatMessageItem({
     required this.id,

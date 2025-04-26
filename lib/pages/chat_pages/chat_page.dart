@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -380,6 +382,10 @@ class _ChatPageState extends State<ChatPage> {
   Widget _buildMessageContent(ChatMessageItem message) {
     switch (message.type) {
       case MessageType.image:
+        if (message.status == MessageStatus.uploading) {
+          // 上传中的状态
+          return _buildUploadingState(message);
+        }
         return ClipRRect(
           borderRadius: _getContentRadius(message),
           child: InkWell(
@@ -427,13 +433,26 @@ class _ChatPageState extends State<ChatPage> {
                 width: double.infinity,
                 height: 180,
                 fit: BoxFit.cover,
+                frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+                  // 图片加载渐显动画
+                  if (wasSynchronouslyLoaded) return child;
+                  return AnimatedOpacity(
+                    opacity: frame == null ? 0 : 1,
+                    duration: const Duration(milliseconds: 300),
+                    curve: Curves.easeOut,
+                    child: child,
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  // 统一加载进度组件
+                  return _buildLoadingProgress(loadingProgress);
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  // 错误状态
+                  return _buildErrorState(message);
+                },
               ),
-              // child: Image.file(
-              //   File(message.content),
-              //   width: double.infinity,
-              //   height: 180,
-              //   fit: BoxFit.cover,
-              // ),
             ),
           ),
         );
@@ -477,6 +496,188 @@ class _ChatPageState extends State<ChatPage> {
           ),
         );
     }
+  }
+
+  // 加载进度组件
+  Widget _buildLoadingProgress(ImageChunkEvent progress) {
+    return Container(
+      height: 180,
+      color: Colors.grey[200],
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CircularProgressIndicator(
+            value: progress.expectedTotalBytes != null
+                ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                : null,
+          ),
+          if (progress.expectedTotalBytes != null)
+            Positioned(
+              bottom: 10,
+              child: Text(
+                '${(progress.cumulativeBytesLoaded / 1024).toStringAsFixed(1)}KB/${(progress.expectedTotalBytes! / 1024).toStringAsFixed(1)}KB',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // 上传中的状态组件
+  Widget _buildUploadingState(ChatMessageItem message) {
+    return Container(
+      height: 180,
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: _getContentRadius(message),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              CircularProgressIndicator(
+                value: message.progress,
+                strokeWidth: 2,
+              ),
+              if (message.progress != null)
+                Text(
+                  '${(message.progress! * 100).toStringAsFixed(0)}%',
+                  style: const TextStyle(fontSize: 12),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '正在上传...',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 错误状态组件
+  Widget _buildErrorState(ChatMessageItem message) {
+    return Container(
+      height: 180,
+      decoration: BoxDecoration(
+        color: Colors.red[50],
+        borderRadius: _getContentRadius(message),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline_rounded, color: Colors.red[400], size: 40),
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () => _retryUpload(message),
+            child: const Text('重新选择并上传'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 模拟图片上传过程
+  void _mockUploadImage(File file, ChatMessageItem message) async {
+    try {
+      // 模拟上传进度
+      for (int i = 0; i <= 100; i += 10) {
+        await Future.delayed(const Duration(milliseconds: 200));
+        setState(() {
+          message.progress = i / 100;
+        });
+      }
+
+      setState(() {
+        // TODO: 替换为真实云端 URL
+        message.content =
+            'https://picsum.photos/200/300?random=${DateTime.now().millisecondsSinceEpoch}';
+        message.status = MessageStatus.sent;
+      });
+    } catch (e) {
+      setState(() {
+        message.status = MessageStatus.failed;
+        _showErrorSnackBar('图片上传失败：${e.toString()}');
+      });
+    }
+  }
+
+  // 重新上传逻辑
+  void _retryUpload(ChatMessageItem originalMessage) async {
+    // 打开系统相册选择新图片
+    final List<XFile>? newImages = await ImagePicker().pickMultiImage(
+      imageQuality: 70,
+    );
+
+    if (newImages == null || newImages.isEmpty) {
+      debugPrint('至少选择一个图片');
+      return;
+    }
+
+    // 移除原始失败消息
+    setState(() {
+      _messages.remove(originalMessage);
+    });
+
+    // 处理选择新的图片
+    for (final image in newImages) {
+      final newMessage = ChatMessageItem(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        // 进行占位
+        content: '',
+        timestamp: DateTime.now(),
+        senderId: currentUserId,
+        type: MessageType.image,
+        status: MessageStatus.uploading,
+        progress: 0,
+      );
+
+      setState(() {
+        _messages.add(newMessage);
+      });
+
+      // 开始上传新图片
+      try {
+        // TODO: 替换为真实的上传逻辑
+        final String imageUrl =
+            await _uploadImageToCloud(File(image.path), newMessage);
+
+        setState(() {
+          newMessage.content = imageUrl;
+          newMessage.status = MessageStatus.sent;
+        });
+      } catch (e) {
+        setState(() {
+          newMessage.status = MessageStatus.failed;
+          _showErrorSnackBar('图片上传失败： ${e.toString()}');
+        });
+      }
+    }
+  }
+
+  // 图片上传方法
+  Future<String> _uploadImageToCloud(
+      File imageFile, ChatMessageItem message) async {
+    // TODO: 实现真实的上传逻辑
+
+    // 模拟上传进度
+    for (int i = 0; i <= 100; i += 10) {
+      await Future.delayed(const Duration(milliseconds: 200));
+      setState(() {
+        message.progress = i / 100;
+      });
+    }
+    return 'https://picsum.photos/200/300?random=${DateTime.now().millisecondsSinceEpoch}';
   }
 
   // 打开图片查看页面
@@ -529,27 +730,23 @@ class _ChatPageState extends State<ChatPage> {
       return;
     }
 
-    // 遍历处理每一张图片
-    try {
-      // TODO: 实现实际的图片上传逻辑，替换下面的伪代码
+    for (final image in images) {
+      final tempImage = ChatMessageItem(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        // 先占位
+        content: '',
+        timestamp: DateTime.now(),
+        senderId: currentUserId,
+        type: MessageType.image,
+        status: MessageStatus.uploading,
+        progress: 0,
+      );
 
-      // 为每个图片创建消息
-      await Future.delayed(Duration(seconds: 1));
+      _mockUploadImage(File(image.path), tempImage);
+
       setState(() {
-        _messages.addAll(images.map((image) => ChatMessageItem(
-              id: DateTime.now().millisecondsSinceEpoch.toString(),
-              // 这里是实际的云端存储的 URL
-              content:
-                  'https://picsum.photos/200/300?random=${DateTime.now().millisecondsSinceEpoch}',
-              timestamp: DateTime.now(),
-              senderId: currentUserId,
-              type: MessageType.image,
-            )));
+        _messages.add(tempImage);
       });
-    } catch (e) {
-      // TODO: 处理图片上传失败的情况
-      debugPrint(
-          '${DateFormat("yyyy/MM/dd HH:mm:ss").format(DateTime.now())}图片上传失败');
     }
   }
 
@@ -558,6 +755,24 @@ class _ChatPageState extends State<ChatPage> {
       SnackBar(
         content: Text(message),
         duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  // 显示错误提示
+  void _showErrorSnackBar(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: '关闭',
+          textColor: Colors.white,
+          onPressed: () {
+            // TODO: 实现点击逻辑
+          },
+        ),
       ),
     );
   }
