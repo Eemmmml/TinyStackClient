@@ -45,7 +45,10 @@ class _InviteMemberPageState extends State<InviteMemberPage> {
       body: SingleChildScrollView(
         child: ExpansionPanelList(
           expansionCallback: (index, isExpanded) {
-            _isExpanded[index] = !isExpanded;
+            setState(() {
+              // _isExpanded[index] = !_isExpanded[index];
+              _isExpanded[index] = isExpanded;
+            });
           },
           children: [
             _buildSection(
@@ -57,6 +60,21 @@ class _InviteMemberPageState extends State<InviteMemberPage> {
                 friends: othersFriends,
                 sectionIndex: 1),
           ],
+        ),
+      ),
+      floatingActionButton: Visibility(
+        visible: _selectedFriendCount > 0,
+        child: FloatingActionButton.extended(
+          onPressed: _confirmInvitation,
+          backgroundColor: Colors.blue,
+          icon: Icon(Icons.check_rounded, color: Colors.white),
+          label: Text(
+            '确定 $_selectedFriendCount',
+            style: TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
       ),
     );
@@ -73,9 +91,7 @@ class _InviteMemberPageState extends State<InviteMemberPage> {
         height: 24,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(
-            width: 2,
-          ),
+          border: Border.all(width: 0.5, color: Colors.grey),
           color: _getButtonColor(friend),
         ),
         child: _shouldShowCheckmark(friend)
@@ -87,15 +103,31 @@ class _InviteMemberPageState extends State<InviteMemberPage> {
 
   // 构建好友列表列表项
   Widget _buildFriendListItem(Friend friend) {
-    return ListTile(
-      leading: _buildSelectedButton(friend),
-      title: CircleAvatar(
-        backgroundImage: NetworkImage(friend.avatarUrl),
-      ),
-      trailing: Text(
-        friend.username,
-      ),
-    );
+    return Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          children: [
+            _buildSelectedButton(friend),
+            const SizedBox(width: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                CircleAvatar(
+                  backgroundImage: NetworkImage(friend.avatarUrl),
+                  radius: 24,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  friend.username,
+                  style: TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 18,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ));
   }
 
   // 构建可折叠面板
@@ -155,6 +187,47 @@ class _InviteMemberPageState extends State<InviteMemberPage> {
     if (selectedIds.isEmpty) {
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('请至少选择一位好友')));
+      return;
+    }
+
+    // 实际业务逻辑示例
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('确认邀请'),
+        content: Text('即将邀请 ${selectedIds.length} 位好友'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('取消'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              // TODO: 调用实际的API接口实现邀请逻辑
+              _sendInvitationRequest(selectedIds);
+
+              Navigator.pop(context);
+            },
+            child: Text('确认'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 模拟邀请用户的 API 调用
+  void _sendInvitationRequest(List<String> userIds) async {
+    try {
+      // TODO：替换为实际的 API
+      await Future.delayed(Duration(seconds: 1));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('邀请信息发送成功')));
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('发送邀请失败 $e')));
     }
   }
 }

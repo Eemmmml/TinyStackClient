@@ -7,6 +7,11 @@ class ChatMessageItem {
   final String senderName;
   final MessageType type;
   final String avatarUrl;
+  // 消息状态
+  MessageStatus status;
+  // 消息上传进度 0-1
+  double? progress;
+
 
   ChatMessageItem({
     required this.id,
@@ -16,7 +21,16 @@ class ChatMessageItem {
     this.senderName = '',
     this.type = MessageType.text,
     this.avatarUrl = 'https://picsum.photos/200/200?random=4',
+    this.status = MessageStatus.sent,
+    this.progress,
   });
+}
+
+// 消息状态枚举类
+enum MessageStatus {
+  uploading, // 消息上传中
+  sent, // 消息发送成功
+  failed, // 消息发送失败
 }
 
 // 消息类型

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:tinystack/entity/group_item.dart';
 
 import '../../entity/chat_item.dart';
@@ -74,11 +76,13 @@ class _ChatPageState extends State<ChatPage> {
           actions: [
             IconButton(
               icon: const Icon(Icons.list_alt),
-              onPressed: () {
-                // TODO: 实现按钮点击逻辑
-                Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => GroupInfoPage()));
-              },
+              onPressed: widget.currentChat.isGroup
+                  ? () {
+                      // TODO: 实现按钮点击逻辑
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (context) => GroupInfoPage()));
+                    }
+                  : null,
             ),
           ],
           title: Row(
@@ -194,6 +198,7 @@ class _ChatPageState extends State<ChatPage> {
               icon: const Icon(Icons.image),
               onPressed: () {
                 // TODO: 实现图片发送逻辑
+                _pickImage();
               },
             ),
             IconButton(
@@ -423,6 +428,12 @@ class _ChatPageState extends State<ChatPage> {
                 height: 180,
                 fit: BoxFit.cover,
               ),
+              // child: Image.file(
+              //   File(message.content),
+              //   width: double.infinity,
+              //   height: 180,
+              //   fit: BoxFit.cover,
+              // ),
             ),
           ),
         );
@@ -497,6 +508,56 @@ class _ChatPageState extends State<ChatPage> {
           );
         },
         transitionDuration: const Duration(milliseconds: 500),
+      ),
+    );
+  }
+
+  // 从设备中选择图片并发送图片消息的方法
+  void _pickImage() async {
+    // 请求访问存储权限
+    final status = await Permission.photos.request();
+    if (!status.isGranted) {
+      debugPrint('返回3');
+      _showToast('图片访问权限被拒绝');
+      return;
+    }
+    final List<XFile> images =
+        await ImagePicker().pickMultiImage(imageQuality: 70);
+
+    if (images == null || images.isEmpty) {
+      debugPrint('请选择至少一张图片');
+      return;
+    }
+
+    // 遍历处理每一张图片
+    try {
+      // TODO: 实现实际的图片上传逻辑，替换下面的伪代码
+
+      // 为每个图片创建消息
+      await Future.delayed(Duration(seconds: 1));
+      setState(() {
+        _messages.addAll(images.map((image) => ChatMessageItem(
+              id: DateTime.now().millisecondsSinceEpoch.toString(),
+              // 这里是实际的云端存储的 URL
+              content:
+                  'https://picsum.photos/200/300?random=${DateTime.now().millisecondsSinceEpoch}',
+              timestamp: DateTime.now(),
+              senderId: currentUserId,
+              type: MessageType.image,
+            )));
+      });
+    } catch (e) {
+      // TODO: 处理图片上传失败的情况
+      debugPrint(
+          '${DateFormat("yyyy/MM/dd HH:mm:ss").format(DateTime.now())}图片上传失败');
+    }
+  }
+
+  void _showToast(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
