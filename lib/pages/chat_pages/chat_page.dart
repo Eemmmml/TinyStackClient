@@ -37,6 +37,8 @@ class _ChatPageState extends State<ChatPage> {
   // 社群的设置项
   final List<SettingItem> settings = SettingItem.settings;
 
+  late final MagnifierController _magnifierController = MagnifierController();
+
   @override
   void initState() {
     super.initState();
@@ -142,6 +144,19 @@ class _ChatPageState extends State<ChatPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // SelectableTextField(
+              //     controller: _messageController,
+              //     focusNode: _focusNode,
+              //     decoration: InputDecoration(
+              //       fillColor: Colors.white,
+              //       filled: true,
+              //       border: OutlineInputBorder(
+              //         borderSide: BorderSide.none,
+              //         borderRadius: BorderRadius.circular(12),
+              //       ),
+              //       contentPadding: const EdgeInsets.symmetric(
+              //           horizontal: 16, vertical: 12),
+              //     )),
               // 输入框
               Expanded(
                 child: TextField(
@@ -164,6 +179,27 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ),
               ),
+              // Expanded(
+              //   child: SelectableTextField(
+              //     controller: _messageController,
+              //     focusNode: _focusNode,
+              //     autofocus: false,
+              //     maxLines: 5,
+              //     minLines: 1,
+              //     keyboardType: TextInputType.multiline,
+              //     decoration: InputDecoration(
+              //       fillColor: Colors.white,
+              //       filled: true,
+              //       border: OutlineInputBorder(
+              //         borderSide: BorderSide.none,
+              //         borderRadius: BorderRadius.circular(12),
+              //       ),
+              //       contentPadding: const EdgeInsets.symmetric(
+              //           horizontal: 16, vertical: 12),
+              //     ),
+              //     style: const TextStyle(fontSize: 12),
+              //   ),
+              // ),
               const SizedBox(width: 8),
               // 发送按钮
               Transform.translate(
@@ -459,7 +495,7 @@ class _ChatPageState extends State<ChatPage> {
             horizontal: 12,
             vertical: 8,
           ),
-          child: Text(
+          child: SelectableText(
             message.content,
             style: TextStyle(
               color: Colors.black,
@@ -469,7 +505,6 @@ class _ChatPageState extends State<ChatPage> {
         );
     }
   }
-
 
   // 模拟图片上传过程
   void _mockUploadImage(File file, ChatMessageItem message) async {
@@ -486,6 +521,8 @@ class _ChatPageState extends State<ChatPage> {
         // TODO: 替换为真实云端 URL
         message.content =
             'https://picsum.photos/200/300?random=${DateTime.now().millisecondsSinceEpoch}';
+        // 用来测试发送失败
+        // message.content = '';
         message.status = MessageStatus.sent;
       });
     } catch (e) {
@@ -820,7 +857,7 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-// 修改错误状态组件
+// 错误状态组件
   Widget _buildErrorState(ChatMessageItem message) {
     return Container(
       decoration: BoxDecoration(
@@ -851,7 +888,7 @@ class _ChatPageState extends State<ChatPage> {
   }
 }
 
-// 新增统一尺寸包装组件
+// 统一尺寸包装组件
 class _ImageBubbleWrapper extends StatelessWidget {
   final double aspectRatio;
   final Widget child;
