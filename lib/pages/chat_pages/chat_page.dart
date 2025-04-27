@@ -1,15 +1,17 @@
 import 'dart:io';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:flutter_sound/flutter_sound.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:tinystack/entity/group_item.dart';
 import 'package:url_launcher/url_launcher_string.dart';
-import 'package:flutter_sound/flutter_sound.dart';
 
 import '../../entity/chat_item.dart';
 import '../../entity/chat_message_item.dart';
@@ -47,18 +49,41 @@ class _ChatPageState extends State<ChatPage> {
   final ScrollController _scrollController = ScrollController();
 
   // 录音器
+  final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
+
+  // 语音播放器
+  final AudioPlayer _audioPlayer = AudioPlayer();
+
+  // 录音状态
+  bool _isRecording = false;
+
+  // 音频播放状态
+  bool _isAudioPlaying = false;
+
+  // 当前播放音频的 ID
+  String? _currentAudioPlayingId;
 
   @override
   void initState() {
     super.initState();
     _messages.addAll(mockMessages);
-    // 监听键盘状态
+    // 初始化录音控制器
+    _initRecorder();
+    _audioPlayer.onPlayerComplete.listen((_) {
+      setState(() {
+        _isAudioPlaying = false;
+      });
+    });
   }
 
   @override
   void dispose() {
     _messageController.dispose();
     _focusNode.dispose();
+    // 销毁录音控制器
+    _recorder.closeRecorder();
+    // 销毁音频播放器
+    _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -217,11 +242,24 @@ class _ChatPageState extends State<ChatPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            IconButton(
-              icon: const Icon(Icons.mic),
-              onPressed: () {
-                // TODO: 实现语音输入逻辑
-              },
+            // IconButton(
+            //   icon: const Icon(Icons.mic),
+            //   onPressed: () async {
+            //     // TODO: 实现语音输入逻辑
+            //   },
+            // ),
+            GestureDetector(
+              onLongPress: _startRecording,
+              onLongPressUp: _stopRecording,
+              child: Container(
+                padding: EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _isRecording ? Colors.red : null,
+                ),
+                child: Icon(_isRecording ? Icons.mic_off : Icons.mic,
+                    color: _isRecording ? Colors.white : Colors.black),
+              ),
             ),
             IconButton(
               icon: const Icon(Icons.image),
@@ -480,6 +518,8 @@ class _ChatPageState extends State<ChatPage> {
           padding: const EdgeInsets.all(4),
           child: Image.network(message.content, width: 80, height: 80),
         );
+      case MessageType.audio:
+        return _buildAudioBubbleContent(message);
       default:
         return Padding(
           padding: const EdgeInsets.symmetric(
@@ -955,6 +995,185 @@ class _ChatPageState extends State<ChatPage> {
         ],
       ),
     );
+  }
+
+  // 初始化录音模块
+  Future<void> _initRecorder() async {
+    await _recorder.openRecorder();
+  }
+
+  // 开始录音
+  Future<void> _startRecording() async {
+    setState(() {
+      _isRecording = true;
+    });
+    try {
+      // 检测设备存储权限
+      final status = await Permission.microphone.request();
+      if (!status.isGranted) {
+        debugPrint('麦克风权限请求失败');
+        _showToast('麦克风权限请求失败');
+      }
+
+      // 添加调试日志
+      debugPrint('麦克风权限已获取：$status');
+
+      // 新建临时文件夹
+      final tempDir = await getTemporaryDirectory();
+      final filePath =
+          '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
+      await _recorder.startRecorder(toFile: filePath, codec: Codec.aacADTS);
+    } catch (e) {
+      _showErrorSnackBar('开始录音失败：${e.toString()}');
+      setState(() {
+        _isRecording = false;
+      });
+    }
+  }
+
+  // 停止录音并发送录音
+  Future<void> _stopRecording() async {
+    setState(() {
+      _isRecording = false;
+    });
+    try {
+      final path = await _recorder.stopRecorder();
+      _sendVoiceMessage(path!);
+    } catch (e) {
+      _showErrorSnackBar('录音失败：${e.toString()}');
+    }
+  }
+
+  // 发送语音消息
+  Future<void> _sendVoiceMessage(String localPath) async {
+    // TODO: 实际需要实现云存储上传
+    // 模拟上传延迟
+    await Future.delayed(Duration(seconds: 1));
+
+    final newMessage = ChatMessageItem(
+      // TODO: 后期对所有的消息 ID 进行统一编制
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      type: MessageType.audio,
+      // TODO: 替换为实际的云端音频 URL
+      content: '',
+      audioUrl:
+          'https://example.com/audio/${DateTime.now().millisecondsSinceEpoch}',
+      // TODO: 实际需要计算音频时长
+      duration: Duration(seconds: 5),
+      timestamp: DateTime.now(),
+      senderId: currentUserId,
+      status: MessageStatus.sent,
+    );
+
+    setState(() {
+      _messages.add(newMessage);
+    });
+  }
+
+  // 播放暂停控制
+  Future<void> _toggleAudioPlaying(ChatMessageItem message) async {
+    // 当当前播放的语音消息的 ID 和当前消息 ID 相同，并且语音正在播放时，我们将暂停语音
+    if (_currentAudioPlayingId == message.id && _isAudioPlaying) {
+      await _audioPlayer.pause();
+      setState(() {
+        _isAudioPlaying = !_isAudioPlaying;
+      });
+    } else {
+      // 判断后选择语音资源来源
+      if (message.audioUrl.startsWith('http') ||
+          message.audioUrl.startsWith('https')) {
+        await _audioPlayer.play(UrlSource(message.audioUrl));
+      } else {
+        await _audioPlayer.play(DeviceFileSource(message.audioUrl));
+      }
+      setState(() {
+        _currentAudioPlayingId = message.id;
+        _isAudioPlaying = !_isAudioPlaying;
+      });
+    }
+  }
+
+  // 实现语音转文字功能
+  Future<void> _transcribeAudio(ChatMessageItem message) async {
+    // TODO: 实现真实的语音识别
+    // 模拟转写结果
+    setState(() {
+      message.transcribedText =
+          '这是模拟的语音转文字结果（${DateTime.now().millisecondsSinceEpoch}）';
+    });
+  }
+
+  Widget _buildAudioBubbleContent(ChatMessageItem message) {
+    bool isMe = currentUserId == message.senderId;
+    final isCurrentPlaying =
+        _currentAudioPlayingId == message.id && _isAudioPlaying;
+    final maxWidth = MediaQuery.of(context).size.width * 0.5;
+
+    return Container(
+      constraints: BoxConstraints(maxHeight: maxWidth),
+      decoration: BoxDecoration(
+        color: isMe ? Colors.blue : Colors.white,
+        borderRadius: BorderRadius.zero,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                icon: Icon(isCurrentPlaying ? Icons.pause : Icons.play_arrow),
+                color: isMe ? Colors.white : Colors.blue,
+                onPressed: () => _toggleAudioPlaying(message),
+              ),
+              Text(
+                '${message.duration.inSeconds}秒',
+                style: TextStyle(
+                  color: isMe ? Colors.white70 : Colors.black54,
+                ),
+              ),
+            ],
+          ),
+          if (message.transcribedText != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                message.transcribedText!,
+                style: TextStyle(
+                  color: isMe ? Colors.white : Colors.black,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              icon: Icon(Icons.translate,
+                  color: isMe ? Colors.white54 : Colors.blueGrey),
+              iconSize: 18,
+              onPressed: () => _transcribeAudio(message),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // TODO: 实现云存储上传
+  Future<String> _uploadAudioToCloud(String localPath) async {
+    await Future.delayed(Duration(seconds: 1));
+    return 'https://example.com/audio/${DateTime.now().millisecondsSinceEpoch}';
+  }
+
+  // TODO: 实现真实的语音识别
+  Future<String> _transcribe(String audioUrl) async {
+    return '模拟转写结果';
+  }
+
+  // TODO: 实现对于音频时长的计算
+  Duration _calculateAudioDuration(String filePath) {
+    return Duration(seconds: 5);
   }
 }
 
