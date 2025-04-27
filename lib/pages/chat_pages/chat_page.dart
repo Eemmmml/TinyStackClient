@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -37,12 +38,19 @@ class _ChatPageState extends State<ChatPage> {
   // 社群的设置项
   final List<SettingItem> settings = SettingItem.settings;
 
-  late final MagnifierController _magnifierController = MagnifierController();
+  // 用来实现文本选择框中选择状态
+  EditableTextState? _editableTextState;
+
+  // 滚动控制器
+  final ScrollController _scrollController = ScrollController();
+
+  // 软键盘可见状态
 
   @override
   void initState() {
     super.initState();
     _messages.addAll(mockMessages);
+    // 监听键盘状态
   }
 
   @override
@@ -106,24 +114,37 @@ class _ChatPageState extends State<ChatPage> {
             children: [
               // 聊天历史区域
               Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    _focusNode.unfocus();
+                child: NotificationListener<ScrollStartNotification>(
+                  onNotification: (notification) {
+                    FocusScope.of(context).unfocus();
+                    return true;
                   },
-                  child: Container(
-                    color: Colors.grey[200],
-                    child: ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      reverse: true,
-                      itemCount: messageWithGroups.length,
-                      itemBuilder: (context, index) {
-                        final item = messageWithGroups[index];
-                        // 实现消息气泡组件
-                        if (item is TimeGroup) {
-                          return _buildTimeStamp(item.formattedTime);
-                        }
-                        return _buildMessageBubble(item as ChatMessageItem);
-                      },
+                  child: GestureDetector(
+                    onTap: () {
+                      FocusScope.of(context).unfocus();
+                      // _focusNode.unfocus();
+                      _editableTextState?.hideToolbar();
+
+                      if (_messageController.selection.isValid) {
+                        _messageController.selection = TextSelection.collapsed(
+                            offset: _messageController.selection.extentOffset);
+                      }
+                    },
+                    child: Container(
+                      color: Colors.grey[200],
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        reverse: true,
+                        itemCount: messageWithGroups.length,
+                        itemBuilder: (context, index) {
+                          final item = messageWithGroups[index];
+                          // 实现消息气泡组件
+                          if (item is TimeGroup) {
+                            return _buildTimeStamp(item.formattedTime);
+                          }
+                          return _buildMessageBubble(item as ChatMessageItem);
+                        },
+                      ),
                     ),
                   ),
                 ),
@@ -144,19 +165,6 @@ class _ChatPageState extends State<ChatPage> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // SelectableTextField(
-              //     controller: _messageController,
-              //     focusNode: _focusNode,
-              //     decoration: InputDecoration(
-              //       fillColor: Colors.white,
-              //       filled: true,
-              //       border: OutlineInputBorder(
-              //         borderSide: BorderSide.none,
-              //         borderRadius: BorderRadius.circular(12),
-              //       ),
-              //       contentPadding: const EdgeInsets.symmetric(
-              //           horizontal: 16, vertical: 12),
-              //     )),
               // 输入框
               Expanded(
                 child: TextField(
@@ -179,27 +187,6 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ),
               ),
-              // Expanded(
-              //   child: SelectableTextField(
-              //     controller: _messageController,
-              //     focusNode: _focusNode,
-              //     autofocus: false,
-              //     maxLines: 5,
-              //     minLines: 1,
-              //     keyboardType: TextInputType.multiline,
-              //     decoration: InputDecoration(
-              //       fillColor: Colors.white,
-              //       filled: true,
-              //       border: OutlineInputBorder(
-              //         borderSide: BorderSide.none,
-              //         borderRadius: BorderRadius.circular(12),
-              //       ),
-              //       contentPadding: const EdgeInsets.symmetric(
-              //           horizontal: 16, vertical: 12),
-              //     ),
-              //     style: const TextStyle(fontSize: 12),
-              //   ),
-              // ),
               const SizedBox(width: 8),
               // 发送按钮
               Transform.translate(
@@ -324,6 +311,7 @@ class _ChatPageState extends State<ChatPage> {
           if (!isMe) _buildMessageAvatar(message, isMe),
           if (!isMe) const SizedBox(width: 4),
           Flexible(
+            fit: FlexFit.loose,
             child: Column(
               crossAxisAlignment:
                   isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
@@ -379,7 +367,8 @@ class _ChatPageState extends State<ChatPage> {
       onTap: () {},
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+          maxWidth: MediaQuery.of(context).size.width * 0.6,
+          minWidth: 0,
         ),
         decoration: BoxDecoration(
           color: isMe ? Colors.blue : Colors.white,
@@ -495,12 +484,88 @@ class _ChatPageState extends State<ChatPage> {
             horizontal: 12,
             vertical: 8,
           ),
-          child: SelectableText(
-            message.content,
+          child: SelectableLinkify(
+            textAlign: TextAlign.start,
             style: TextStyle(
-              color: Colors.black,
               fontSize: 16,
+              height: 1.4,
+              color: message.senderId == currentUserId
+                  ? Colors.white
+                  : Colors.black87,
             ),
+            linkStyle: TextStyle(
+              fontSize: 16,
+              color: message.senderId == currentUserId
+                  ? Colors.white
+                  : Colors.blue,
+              decoration: TextDecoration.combine(
+                [
+                  TextDecoration.underline,
+                ],
+              ),
+              decorationColor: message.senderId == currentUserId
+                  ? Colors.white
+                  : Colors.blue,
+              decorationThickness: 1.5,
+            ),
+            options: LinkifyOptions(
+              humanize: false,
+              looseUrl: true,
+            ),
+            onOpen: (link) {
+              debugPrint('Clicked ${link.url}');
+            },
+            linkifiers: const [
+              UrlLinkifier(),
+              EmailLinkifier(),
+            ],
+            text: message.content,
+            contextMenuBuilder: (context, editableTextState) {
+              _editableTextState = editableTextState;
+              final tempButtons = editableTextState.contextMenuButtonItems;
+              final tempButtonCopy = tempButtons[0];
+              final tempButtonShare = tempButtons[1];
+              final tempButtonSelectAll = tempButtons[2];
+
+              tempButtons.removeAt(0);
+              tempButtons.removeAt(1);
+              tempButtons.removeAt(2);
+
+              tempButtons.addAll([
+                ContextMenuButtonItem(
+                  onPressed: tempButtonShare.onPressed,
+                  type: tempButtonShare.type,
+                  label: '分享',
+                ),
+                ContextMenuButtonItem(
+                  onPressed: tempButtonSelectAll.onPressed,
+                  type: tempButtonSelectAll.type,
+                  label: '全选',
+                ),
+                ContextMenuButtonItem(
+                  onPressed: tempButtonCopy.onPressed,
+                  type: tempButtonCopy.type,
+                  label: '复制',
+                ),
+              ]);
+
+              return AdaptiveTextSelectionToolbar(
+                anchors: editableTextState.contextMenuAnchors,
+                children: [
+                  ...tempButtons.reversed.map((item) {
+                    return TextButton(
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.transparent,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                      ),
+                      onPressed: item.onPressed,
+                      child: Text(item.label ?? 'temp'),
+                    );
+                  }),
+                ],
+              );
+            },
           ),
         );
     }
@@ -902,8 +967,8 @@ class _ImageBubbleWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.75,
-        maxHeight: MediaQuery.of(context).size.height * 0.6,
+        maxWidth: MediaQuery.of(context).size.width * 0.5,
+        maxHeight: MediaQuery.of(context).size.height * 0.4,
       ),
       child: AspectRatio(
         aspectRatio: aspectRatio,

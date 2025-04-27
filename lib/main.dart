@@ -47,7 +47,7 @@ class Home extends StatelessWidget {
       themeMode: context.watch<ThemeProvider>().themeMode,
       // home: LoginPage(),
       debugShowCheckedModeBanner: false,
-      supportedLocales: const [Locale('zh', 'CN')],
+      supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,

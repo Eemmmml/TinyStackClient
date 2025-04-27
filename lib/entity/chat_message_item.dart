@@ -113,7 +113,7 @@ List<ChatMessageItem> generateMockMessages() {
     // 跨月消息（测试MM-dd格式）
     ChatMessageItem(
       id: '6',
-      content: '项目文档已更新',
+      content: '项目文档已更新 https://example.com/demo.mp4',
       timestamp: DateTime(now.year, now.month - 1, 28, 9, 15),
       senderId: 'user_456',
       senderName: 'Hel',
