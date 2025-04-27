@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:tinystack/entity/group_item.dart';
+import 'package:url_launcher/url_launcher_string.dart';
+import 'package:flutter_sound/flutter_sound.dart';
 
 import '../../entity/chat_item.dart';
 import '../../entity/chat_message_item.dart';
@@ -44,7 +46,7 @@ class _ChatPageState extends State<ChatPage> {
   // 滚动控制器
   final ScrollController _scrollController = ScrollController();
 
-  // 软键盘可见状态
+  // 录音器
 
   @override
   void initState() {
@@ -512,8 +514,11 @@ class _ChatPageState extends State<ChatPage> {
               humanize: false,
               looseUrl: true,
             ),
-            onOpen: (link) {
+            onOpen: (link) async {
               debugPrint('Clicked ${link.url}');
+              if (!await launchUrlString(link.url)) {
+                throw Exception('Could not launch ${link.url}');
+              }
             },
             linkifiers: const [
               UrlLinkifier(),

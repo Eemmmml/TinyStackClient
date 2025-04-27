@@ -7,6 +7,15 @@ class ChatMessageItem {
   final String senderName;
   final MessageType type;
   final String avatarUrl;
+
+  // 语音文件地址
+  final String audioUrl;
+
+  // 语音时长
+  final Duration duration;
+
+  // 转文字后的文本
+  String? transcribedText;
   final int? width;
   final int? height;
 
@@ -24,6 +33,9 @@ class ChatMessageItem {
     this.senderName = '',
     this.type = MessageType.text,
     this.avatarUrl = 'https://picsum.photos/200/200?random=4',
+    this.audioUrl = '',
+    this.duration = Duration.zero,
+    this.transcribedText = '',
     this.status = MessageStatus.sent,
     this.progress,
     this.width,
@@ -48,6 +60,8 @@ enum MessageType {
   video,
   // 表情信息
   emoji,
+  // 音频消息
+  audio,
 }
 
 // 时间分组数据模型
@@ -113,7 +127,8 @@ List<ChatMessageItem> generateMockMessages() {
     // 跨月消息（测试MM-dd格式）
     ChatMessageItem(
       id: '6',
-      content: '项目文档已更新 https://example.com/demo.mp4',
+      // content: '项目文档已更新 https://picsum.photos/120/90',
+      content: 'https://picsum.photos/120/90',
       timestamp: DateTime(now.year, now.month - 1, 28, 9, 15),
       senderId: 'user_456',
       senderName: 'Hel',
