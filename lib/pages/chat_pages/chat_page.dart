@@ -10,6 +10,10 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:tencentcloud_cos_sdk_plugin/cos.dart';
+import 'package:tencentcloud_cos_sdk_plugin/cos_transfer_manger.dart';
+import 'package:tencentcloud_cos_sdk_plugin/pigeon.dart';
+import 'package:tencentcloud_cos_sdk_plugin/transfer_task.dart';
 import 'package:tinystack/entity/group_item.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
@@ -62,6 +66,16 @@ class _ChatPageState extends State<ChatPage> {
 
   // 当前播放音频的 ID
   String? _currentAudioPlayingId;
+
+  // TODO: 将永久密钥替换为获取的临时密钥
+  // 腾讯云 SecretId
+  final String _secretId = 'AKIDIVZQ2PXR5UhmhRyINGvOdcPyINDoAIAQ';
+
+  // 腾讯云 SecretKey
+  final String _secretKey = '70f5HI6lOo0xFOJzRjrnUzHNK7jDj9OQ';
+
+  // 腾讯云存储桶名称
+  final String _voiceBucket = 'tinystack-voice-store-1356865752';
 
   @override
   void initState() {
@@ -1047,8 +1061,7 @@ class _ChatPageState extends State<ChatPage> {
   // 发送语音消息
   Future<void> _sendVoiceMessage(String localPath) async {
     // TODO: 实际需要实现云存储上传
-    // 模拟上传延迟
-    await Future.delayed(Duration(seconds: 1));
+    _uploadAudioToCloud(localPath);
 
     final newMessage = ChatMessageItem(
       // TODO: 后期对所有的消息 ID 进行统一编制
@@ -1110,7 +1123,7 @@ class _ChatPageState extends State<ChatPage> {
     final maxWidth = MediaQuery.of(context).size.width * 0.5;
 
     return Container(
-      constraints: BoxConstraints(maxHeight: maxWidth),
+      constraints: BoxConstraints(maxWidth: maxWidth),
       decoration: BoxDecoration(
         color: isMe ? Colors.blue : Colors.white,
         borderRadius: BorderRadius.zero,
@@ -1162,8 +1175,87 @@ class _ChatPageState extends State<ChatPage> {
 
   // TODO: 实现云存储上传
   Future<String> _uploadAudioToCloud(String localPath) async {
-    await Future.delayed(Duration(seconds: 1));
-    return 'https://example.com/audio/${DateTime.now().millisecondsSinceEpoch}';
+    await Cos().initWithPlainSecret(_secretId, _secretKey);
+    // 腾讯云存储通的区域
+    String region = 'ap-beijing';
+    // =========== 注册 COS 服务 ===========
+    // 创建 CosXmlServiceConfig 对象，根据需要修改默认的参数配置
+    CosXmlServiceConfig serviceConfig = CosXmlServiceConfig(
+      region: region,
+      isDebuggable: true,
+      isHttps: true,
+    );
+
+    // 注册默认 Cos Service
+    await Cos().registerDefaultService(serviceConfig);
+    // 创建 TransferConfig 对象，根据需要修改默认的配置参数
+    TransferConfig transferConfig = TransferConfig(
+      forceSimpleUpload: false,
+      enableVerification: true,
+      // 设置大于等于 2M 的文件进行分块上传
+      divisionForUpload: 2097152,
+      // 设置默认分块大小为 1M
+      sliceSizeForUpload: 1048576,
+    );
+
+    // 注册默认 COS TransferManager
+    await Cos().registerDefaultTransferManger(serviceConfig, transferConfig);
+
+    // =========== 访问 COS 服务 ===========
+    // 获取 TransferManager
+    CosTransferManger transferManger = Cos().getDefaultTransferManger();
+    // 存储桶名称
+    String bucket = _voiceBucket;
+    // 对象在存储桶中的为i饿汉子标识符，即对象键
+    String cosPath =
+        'tiny_stack_voice_chat_${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
+
+    // 若存在初始化分块上传的 UploadId，则赋值对应的 uploadId 值用于续传；否则复制 null
+    String? _uploadId = cosPath;
+
+    // 上传成功回调
+    successCallBack(Map<String?, String?>? hander, CosXmlResult? result) {
+      // TODO: 上传成功后的逻辑
+    }
+
+    // 上传失败回调
+    failCallBack(clientException, serviceException) {
+      // TODO: 上传失败后的逻辑
+      if (clientException != null) {
+        debugPrint('客户端语音消息上传失败 ${clientException.toString()}');
+      }
+      if (serviceException != null) {
+        debugPrint('服务端语音消息上传失败 ${clientException.toString()}');
+      }
+    }
+
+    // 上传状态回调，可以查看任务过程
+    stateCallBack(state) {
+      // TODO: 通知传输状态
+    }
+
+    // 上传进度回调
+    progressCallBack(complete, target) {
+      // TODO: 上传进度逻辑
+    }
+
+    // 初始化分块完成回调
+    initMultipleUploadCallBack(String bucket, String cosKey, String uploadId) {
+      // 用户下次续传上传的 uploadId
+      _uploadId = uploadId;
+    }
+
+    // 开始上传
+    TransferTask transferTask = await transferManger.upload(
+      bucket,
+      cosPath,
+      filePath: localPath,
+      uploadId: _uploadId,
+      resultListener: ResultListener(successCallBack, failCallBack),
+      progressCallBack: progressCallBack,
+      initMultipleUploadCallback: initMultipleUploadCallBack,
+    );
+    return '';
   }
 
   // TODO: 实现真实的语音识别

@@ -56,6 +56,8 @@
 //}
 allprojects {
     repositories {
+        mavenCentral()
+        maven { url 'https://cos.ap-beijing.myqcloud.com/repository' }
         maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
         maven { url 'https://maven.aliyun.com/repository/central' } // 关键！
         maven { url 'https://maven.aliyun.com/repository/google' }
@@ -64,7 +66,6 @@ allprojects {
         maven { url 'https://mirrors.cloud.tencent.com/nexus/repository/maven-public/' }
         maven { url 'https://repo.huaweicloud.com/repository/maven/' }
         google()
-        mavenCentral()
     }
 }
 
@@ -73,6 +74,8 @@ buildscript {
 
     repositories {
         // 保留原仓库（可选）
+        mavenCentral()
+        maven { url 'https://cos.ap-beijing.myqcloud.com/repository' }
         maven { url 'https://maven.aliyun.com/repository/gradle-plugin' }
         maven { url 'https://maven.aliyun.com/repository/central' } // 关键！
         maven { url 'https://maven.aliyun.com/repository/google' }
