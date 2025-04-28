@@ -749,13 +749,13 @@ class _ChatPageState extends State<ChatPage> {
         'tiny_stack_image_chat${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
     final uploaderId = currentUserId;
 
-    // 模拟上传进度
-    for (int i = 0; i <= 100; i += 10) {
-      await Future.delayed(const Duration(milliseconds: 200));
-      setState(() {
-        message.progress = i / 100;
-      });
-    }
+    // // 模拟上传进度
+    // for (int i = 0; i <= 100; i += 10) {
+    //   await Future.delayed(const Duration(milliseconds: 200));
+    //   setState(() {
+    //     message.progress = i / 100;
+    //   });
+    // }
 
     final imageUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
         imageFile.path, cosPath, uploaderId);
