@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:cached_network_image_plus/flutter_cached_network_image_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:flutter_sound/flutter_sound.dart';
@@ -10,15 +11,12 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:tencentcloud_cos_sdk_plugin/cos.dart';
-import 'package:tencentcloud_cos_sdk_plugin/cos_transfer_manger.dart';
-import 'package:tencentcloud_cos_sdk_plugin/pigeon.dart';
-import 'package:tencentcloud_cos_sdk_plugin/transfer_task.dart';
 import 'package:tinystack/entity/group_item.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../entity/chat_item.dart';
 import '../../entity/chat_message_item.dart';
+import '../../utils/cloud_upload_utils.dart';
 import 'group_info_page.dart';
 import 'image_detail_screen.dart';
 
@@ -58,6 +56,9 @@ class _ChatPageState extends State<ChatPage> {
   // 语音播放器
   final AudioPlayer _audioPlayer = AudioPlayer();
 
+  // 用来强制加载状态的变量
+  bool tempState = false;
+
   // 录音状态
   bool _isRecording = false;
 
@@ -74,8 +75,20 @@ class _ChatPageState extends State<ChatPage> {
   // 腾讯云 SecretKey
   final String _secretKey = '70f5HI6lOo0xFOJzRjrnUzHNK7jDj9OQ';
 
-  // 腾讯云存储桶名称
+  // 音频腾讯云存储桶名称
   final String _voiceBucket = 'tinystack-voice-store-1356865752';
+
+  // 图片腾讯云存储桶名称
+  final String _imageBucket = 'tinystack-image-store-1356865752';
+
+  // 腾讯云存储桶的服务器区域
+  final String _region = 'ap-beijing';
+
+  // 音频上传工具
+  late CloudUploadUtils _audioCloudUploadUtils;
+
+  // 图片上传工具
+  late CloudUploadUtils _imageCloudUploadUtils;
 
   @override
   void initState() {
@@ -88,6 +101,18 @@ class _ChatPageState extends State<ChatPage> {
         _isAudioPlaying = false;
       });
     });
+
+    _audioCloudUploadUtils = CloudUploadUtils(
+        secretId: _secretId,
+        secretKey: _secretKey,
+        bucketName: _voiceBucket,
+        region: _region);
+
+    _imageCloudUploadUtils = CloudUploadUtils(
+        secretId: _secretId,
+        secretKey: _secretKey,
+        bucketName: _imageBucket,
+        region: _region);
   }
 
   @override
@@ -477,32 +502,40 @@ class _ChatPageState extends State<ChatPage> {
               onTap: () => _openImageDetail(context, message.content),
               child: Hero(
                 tag: 'image_hero_${message.id}',
-                child: Image.network(
-                  message.content,
-                  fit: BoxFit.cover,
-                  frameBuilder:
-                      (context, child, frame, wasSynchronouslyLoaded) {
-                    if (wasSynchronouslyLoaded) return child;
-                    return AnimatedOpacity(
-                      opacity: frame == null ? 0 : 1,
-                      duration: const Duration(milliseconds: 300),
-                      child: child,
-                    );
-                  },
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return _ImageBubbleWrapper(
+                child: CacheNetworkImagePlus(
+                  imageUrl: message.content,
+                  boxFit: BoxFit.cover,
+                  errorWidget: _ImageBubbleWrapper(
                       aspectRatio: aspectRatio,
-                      child: _buildLoadingState(message, loadingProgress),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return _ImageBubbleWrapper(
-                      aspectRatio: aspectRatio,
-                      child: _buildErrorState(message),
-                    );
-                  },
+                      child: _buildErrorState(message)),
                 ),
+                // child: Image.network(
+                //   message.content,
+                //   fit: BoxFit.cover,
+                //   frameBuilder:
+                //       (context, child, frame, wasSynchronouslyLoaded) {
+                //     if (wasSynchronouslyLoaded) return child;
+                //     return AnimatedOpacity(
+                //       opacity: frame == null ? 0 : 1,
+                //       duration: const Duration(milliseconds: 300),
+                //       child: child,
+                //     );
+                //   },
+                //   loadingBuilder: (context, child, loadingProgress) {
+                //     if (loadingProgress == null) return child;
+                //     return _ImageBubbleWrapper(
+                //       aspectRatio: aspectRatio,
+                //       child: _buildLoadingState(message, loadingProgress),
+                //     );
+                //   },
+                //   errorBuilder: (context, error, stackTrace) {
+                //     debugPrint('图片加载出错: ${stackTrace.toString()}');
+                //     return _ImageBubbleWrapper(
+                //       aspectRatio: aspectRatio,
+                //       child: _buildErrorState(message),
+                //     );
+                //   },
+                // ),
               ),
             ),
           ),
@@ -630,8 +663,8 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  // 模拟图片上传过程
-  void _mockUploadImage(File file, ChatMessageItem message) async {
+  // 实际图片上传过程
+  void _uploadImage(File file, ChatMessageItem message) async {
     try {
       // 模拟上传进度
       for (int i = 0; i <= 100; i += 10) {
@@ -641,10 +674,21 @@ class _ChatPageState extends State<ChatPage> {
         });
       }
 
+      final cosPath =
+          'tiny_stack_image_chat$currentUserId${DateTime.now().millisecondsSinceEpoch}';
+      final uploaderId = currentUserId;
+
+      final imageUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
+          file.path, cosPath, uploaderId);
+
+      await Future.delayed(const Duration(milliseconds: 200));
       setState(() {
         // TODO: 替换为真实云端 URL
-        message.content =
-            'https://picsum.photos/200/300?random=${DateTime.now().millisecondsSinceEpoch}';
+        // message.content =
+        // 'https://picsum.photos/200/300?random=${DateTime
+        //     .now()
+        //     .millisecondsSinceEpoch}';
+        message.content = imageUrl;
         // 用来测试发送失败
         // message.content = '';
         message.status = MessageStatus.sent;
@@ -714,6 +758,9 @@ class _ChatPageState extends State<ChatPage> {
   Future<String> _uploadImageToCloud(
       File imageFile, ChatMessageItem message) async {
     // TODO: 实现真实的上传逻辑
+    final cosPath =
+        'tiny_stack_image_chat${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
+    final uploaderId = currentUserId;
 
     // 模拟上传进度
     for (int i = 0; i <= 100; i += 10) {
@@ -722,7 +769,10 @@ class _ChatPageState extends State<ChatPage> {
         message.progress = i / 100;
       });
     }
-    return 'https://picsum.photos/200/300?random=${DateTime.now().millisecondsSinceEpoch}';
+
+    final imageUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
+        imageFile.path, cosPath, uploaderId);
+    return imageUrl;
   }
 
   // 打开图片查看页面
@@ -794,7 +844,8 @@ class _ChatPageState extends State<ChatPage> {
         height: decodedImage?.height,
       );
 
-      _mockUploadImage(File(image.path), tempImage);
+      // _mockUploadImage(File(image.path), tempImage);
+      _uploadImage(File(image.path), tempImage);
 
       setState(() {
         _messages.add(tempImage);
@@ -1061,7 +1112,12 @@ class _ChatPageState extends State<ChatPage> {
   // 发送语音消息
   Future<void> _sendVoiceMessage(String localPath) async {
     // TODO: 实际需要实现云存储上传
-    _uploadAudioToCloud(localPath);
+    // String audioUrl = await _uploadAudioToCloud(localPath);
+    final cosPath =
+        'tiny_stack_voice_chat_${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
+    final uploaderId = currentUserId;
+    String audioUrl = await _audioCloudUploadUtils.uploadLocalFileToCloud(
+        localPath, cosPath, uploaderId);
 
     final newMessage = ChatMessageItem(
       // TODO: 后期对所有的消息 ID 进行统一编制
@@ -1069,8 +1125,7 @@ class _ChatPageState extends State<ChatPage> {
       type: MessageType.audio,
       // TODO: 替换为实际的云端音频 URL
       content: '',
-      audioUrl:
-          'https://example.com/audio/${DateTime.now().millisecondsSinceEpoch}',
+      audioUrl: audioUrl,
       // TODO: 实际需要计算音频时长
       duration: Duration(seconds: 5),
       timestamp: DateTime.now(),
@@ -1171,91 +1226,6 @@ class _ChatPageState extends State<ChatPage> {
         ],
       ),
     );
-  }
-
-  // TODO: 实现云存储上传
-  Future<String> _uploadAudioToCloud(String localPath) async {
-    await Cos().initWithPlainSecret(_secretId, _secretKey);
-    // 腾讯云存储通的区域
-    String region = 'ap-beijing';
-    // =========== 注册 COS 服务 ===========
-    // 创建 CosXmlServiceConfig 对象，根据需要修改默认的参数配置
-    CosXmlServiceConfig serviceConfig = CosXmlServiceConfig(
-      region: region,
-      isDebuggable: true,
-      isHttps: true,
-    );
-
-    // 注册默认 Cos Service
-    await Cos().registerDefaultService(serviceConfig);
-    // 创建 TransferConfig 对象，根据需要修改默认的配置参数
-    TransferConfig transferConfig = TransferConfig(
-      forceSimpleUpload: false,
-      enableVerification: true,
-      // 设置大于等于 2M 的文件进行分块上传
-      divisionForUpload: 2097152,
-      // 设置默认分块大小为 1M
-      sliceSizeForUpload: 1048576,
-    );
-
-    // 注册默认 COS TransferManager
-    await Cos().registerDefaultTransferManger(serviceConfig, transferConfig);
-
-    // =========== 访问 COS 服务 ===========
-    // 获取 TransferManager
-    CosTransferManger transferManger = Cos().getDefaultTransferManger();
-    // 存储桶名称
-    String bucket = _voiceBucket;
-    // 对象在存储桶中的为i饿汉子标识符，即对象键
-    String cosPath =
-        'tiny_stack_voice_chat_${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
-
-    // 若存在初始化分块上传的 UploadId，则赋值对应的 uploadId 值用于续传；否则复制 null
-    String? _uploadId = cosPath;
-
-    // 上传成功回调
-    successCallBack(Map<String?, String?>? hander, CosXmlResult? result) {
-      // TODO: 上传成功后的逻辑
-    }
-
-    // 上传失败回调
-    failCallBack(clientException, serviceException) {
-      // TODO: 上传失败后的逻辑
-      if (clientException != null) {
-        debugPrint('客户端语音消息上传失败 ${clientException.toString()}');
-      }
-      if (serviceException != null) {
-        debugPrint('服务端语音消息上传失败 ${clientException.toString()}');
-      }
-    }
-
-    // 上传状态回调，可以查看任务过程
-    stateCallBack(state) {
-      // TODO: 通知传输状态
-    }
-
-    // 上传进度回调
-    progressCallBack(complete, target) {
-      // TODO: 上传进度逻辑
-    }
-
-    // 初始化分块完成回调
-    initMultipleUploadCallBack(String bucket, String cosKey, String uploadId) {
-      // 用户下次续传上传的 uploadId
-      _uploadId = uploadId;
-    }
-
-    // 开始上传
-    TransferTask transferTask = await transferManger.upload(
-      bucket,
-      cosPath,
-      filePath: localPath,
-      uploadId: _uploadId,
-      resultListener: ResultListener(successCallBack, failCallBack),
-      progressCallBack: progressCallBack,
-      initMultipleUploadCallback: initMultipleUploadCallBack,
-    );
-    return '';
   }
 
   // TODO: 实现真实的语音识别
