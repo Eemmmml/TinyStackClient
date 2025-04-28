@@ -107,12 +107,6 @@ class _ChatPageState extends State<ChatPage> {
         secretKey: _secretKey,
         bucketName: _voiceBucket,
         region: _region);
-
-    _imageCloudUploadUtils = CloudUploadUtils(
-        secretId: _secretId,
-        secretKey: _secretKey,
-        bucketName: _imageBucket,
-        region: _region);
   }
 
   @override
@@ -509,33 +503,6 @@ class _ChatPageState extends State<ChatPage> {
                       aspectRatio: aspectRatio,
                       child: _buildErrorState(message)),
                 ),
-                // child: Image.network(
-                //   message.content,
-                //   fit: BoxFit.cover,
-                //   frameBuilder:
-                //       (context, child, frame, wasSynchronouslyLoaded) {
-                //     if (wasSynchronouslyLoaded) return child;
-                //     return AnimatedOpacity(
-                //       opacity: frame == null ? 0 : 1,
-                //       duration: const Duration(milliseconds: 300),
-                //       child: child,
-                //     );
-                //   },
-                //   loadingBuilder: (context, child, loadingProgress) {
-                //     if (loadingProgress == null) return child;
-                //     return _ImageBubbleWrapper(
-                //       aspectRatio: aspectRatio,
-                //       child: _buildLoadingState(message, loadingProgress),
-                //     );
-                //   },
-                //   errorBuilder: (context, error, stackTrace) {
-                //     debugPrint('图片加载出错: ${stackTrace.toString()}');
-                //     return _ImageBubbleWrapper(
-                //       aspectRatio: aspectRatio,
-                //       child: _buildErrorState(message),
-                //     );
-                //   },
-                // ),
               ),
             ),
           ),
@@ -665,14 +632,26 @@ class _ChatPageState extends State<ChatPage> {
 
   // 实际图片上传过程
   void _uploadImage(File file, ChatMessageItem message) async {
-    try {
-      // 模拟上传进度
-      for (int i = 0; i <= 100; i += 10) {
-        await Future.delayed(const Duration(milliseconds: 200));
-        setState(() {
-          message.progress = i / 100;
+    _imageCloudUploadUtils = CloudUploadUtils(
+        secretId: _secretId,
+        secretKey: _secretKey,
+        bucketName: _imageBucket,
+        region: _region,
+        progressCallBack: (complete, target) {
+          // 实际的上传进度
+          setState(() {
+            message.progress = complete / target;
+          });
         });
-      }
+
+    try {
+      // // 模拟上传进度
+      // for (int i = 0; i <= 100; i += 10) {
+      //   await Future.delayed(const Duration(milliseconds: 200));
+      //   setState(() {
+      //     message.progress = i / 100;
+      //   });
+      // }
 
       final cosPath =
           'tiny_stack_image_chat$currentUserId${DateTime.now().millisecondsSinceEpoch}';
@@ -681,13 +660,10 @@ class _ChatPageState extends State<ChatPage> {
       final imageUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
           file.path, cosPath, uploaderId);
 
-      await Future.delayed(const Duration(milliseconds: 200));
+      // 等待一段时间来保证腾讯云 COS 服务正确同步我们上传的数据
+      await Future.delayed(const Duration(milliseconds: 1000));
       setState(() {
-        // TODO: 替换为真实云端 URL
-        // message.content =
-        // 'https://picsum.photos/200/300?random=${DateTime
-        //     .now()
-        //     .millisecondsSinceEpoch}';
+        // 替换为真实云端 URL
         message.content = imageUrl;
         // 用来测试发送失败
         // message.content = '';
@@ -758,6 +734,17 @@ class _ChatPageState extends State<ChatPage> {
   Future<String> _uploadImageToCloud(
       File imageFile, ChatMessageItem message) async {
     // TODO: 实现真实的上传逻辑
+    _imageCloudUploadUtils = CloudUploadUtils(
+        secretId: _secretId,
+        secretKey: _secretKey,
+        bucketName: _imageBucket,
+        region: _region,
+        progressCallBack: (complete, target) {
+          // 实际的上传进度
+          setState(() {
+            message.progress = complete / target;
+          });
+        });
     final cosPath =
         'tiny_stack_image_chat${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
     final uploaderId = currentUserId;
@@ -772,6 +759,8 @@ class _ChatPageState extends State<ChatPage> {
 
     final imageUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
         imageFile.path, cosPath, uploaderId);
+
+    await Future.delayed(const Duration(milliseconds: 1000));
     return imageUrl;
   }
 
