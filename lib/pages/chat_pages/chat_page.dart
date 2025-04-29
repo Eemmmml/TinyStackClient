@@ -56,6 +56,9 @@ class _ChatPageState extends State<ChatPage> {
   // 语音播放器
   final AudioPlayer _audioPlayer = AudioPlayer();
 
+  // 是否展示录音界面
+  bool _showRecordingUI = false;
+
   // 用来强制加载状态的变量
   bool tempState = false;
 
@@ -107,6 +110,13 @@ class _ChatPageState extends State<ChatPage> {
         secretKey: _secretKey,
         bucketName: _voiceBucket,
         region: _region);
+
+    // 为滚动控制器添加监听器
+    _scrollController.addListener(() {
+      setState(() {
+        _showRecordingUI = false;
+      });
+    });
   }
 
   @override
@@ -135,11 +145,19 @@ class _ChatPageState extends State<ChatPage> {
       _messages.add(newMessage);
       _messageController.clear();
     });
+
+    // 滚动到最新消息
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(0,
+            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final messageWithGroups = _getMessageWithTimeGroups();
+    final messageWithGroups = _getMessageWithTimeGroups().reversed.toList();
 
     return Scaffold(
         appBar: AppBar(
@@ -176,6 +194,9 @@ class _ChatPageState extends State<ChatPage> {
               Expanded(
                 child: NotificationListener<ScrollStartNotification>(
                   onNotification: (notification) {
+                    setState(() {
+                      _showRecordingUI = false;
+                    });
                     FocusScope.of(context).unfocus();
                     return true;
                   },
@@ -193,8 +214,9 @@ class _ChatPageState extends State<ChatPage> {
                     child: Container(
                       color: Colors.grey[200],
                       child: ListView.builder(
+                        controller: _scrollController,
                         padding: const EdgeInsets.all(16),
-                        reverse: false,
+                        reverse: true,
                         itemCount: messageWithGroups.length,
                         itemBuilder: (context, index) {
                           final item = messageWithGroups[index];
@@ -262,6 +284,8 @@ class _ChatPageState extends State<ChatPage> {
         ),
         // 底部功能按钮行
         _buildFeatureButtons(),
+
+        if (_showRecordingUI) _buildRecordingUI(),
       ],
     );
   }
@@ -275,25 +299,29 @@ class _ChatPageState extends State<ChatPage> {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            // IconButton(
-            //   icon: const Icon(Icons.mic),
-            //   onPressed: () async {
-            //     // TODO: 实现语音输入逻辑
-            //   },
-            // ),
-            GestureDetector(
-              onLongPress: _startRecording,
-              onLongPressUp: _stopRecording,
-              child: Container(
-                padding: EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _isRecording ? Colors.red : null,
-                ),
-                child: Icon(_isRecording ? Icons.mic_off : Icons.mic,
-                    color: _isRecording ? Colors.white : Colors.black),
-              ),
+            IconButton(
+              icon: const Icon(Icons.mic),
+              onPressed: () {
+                // TODO: 实现开关录音界面状态
+                setState(() {
+                  _showRecordingUI = !_showRecordingUI;
+                });
+                FocusScope.of(context).unfocus();
+              },
             ),
+            // GestureDetector(
+            //   onLongPress: _startRecording,
+            //   onLongPressUp: _stopRecording,
+            //   child: Container(
+            //     padding: EdgeInsets.all(8),
+            //     decoration: BoxDecoration(
+            //       shape: BoxShape.circle,
+            //       color: _isRecording ? Colors.red : null,
+            //     ),
+            //     child: Icon(_isRecording ? Icons.mic_off : Icons.mic,
+            //         color: _isRecording ? Colors.white : Colors.black),
+            //   ),
+            // ),
             IconButton(
               icon: const Icon(Icons.image),
               onPressed: () {
@@ -322,6 +350,7 @@ class _ChatPageState extends State<ChatPage> {
   // 生成带时间分组的消息列表
   List<dynamic> _getMessageWithTimeGroups() {
     if (_messages.isEmpty) return [];
+    // 对消息队列进行排序
     _messages.sort((msg1, msg2) {
       if (msg1.timestamp.isBefore(msg2.timestamp)) {
         return -1;
@@ -333,18 +362,6 @@ class _ChatPageState extends State<ChatPage> {
     });
 
     List<dynamic> results = [];
-
-    // for (var msg in _messages.reversed) {
-    //   results.add(msg);
-    //   if (previousSendMessageTime == null ||
-    //       msg.timestamp.difference(previousSendMessageTime!).inMinutes.abs() >
-    //           5) {
-    //     results.add(_createTimeGroup(msg.timestamp));
-    //     setState(() {
-    //       previousSendMessageTime = msg.timestamp;
-    //     });
-    //   }
-    // }
 
     // 上一次的消息发送时间
     DateTime? previousTimeStamp;
@@ -1250,6 +1267,39 @@ class _ChatPageState extends State<ChatPage> {
     } finally {
       await player.dispose();
     }
+  }
+
+  // 构建录音界面
+  Widget _buildRecordingUI() {
+    return Container(
+      height: 300,
+      width: double.infinity,
+      color: Colors.white,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          GestureDetector(
+            onTapDown: (_) => _startRecording(),
+            onTapUp: (_) => _stopRecording(),
+            child: Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: _isRecording ? Colors.red : Colors.grey[200],
+              ),
+              child: Icon(Icons.mic,
+                  size: 56, color: _isRecording ? Colors.white : Colors.black),
+            ),
+          ),
+          const SizedBox(height: 30),
+          Text(
+            _isRecording ? '松开结束录音' : '按住说话',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+        ],
+      ),
+    );
   }
 }
 
