@@ -194,7 +194,7 @@ class _ChatPageState extends State<ChatPage> {
                       color: Colors.grey[200],
                       child: ListView.builder(
                         padding: const EdgeInsets.all(16),
-                        reverse: true,
+                        reverse: false,
                         itemCount: messageWithGroups.length,
                         itemBuilder: (context, index) {
                           final item = messageWithGroups[index];
@@ -322,18 +322,42 @@ class _ChatPageState extends State<ChatPage> {
   // 生成带时间分组的消息列表
   List<dynamic> _getMessageWithTimeGroups() {
     if (_messages.isEmpty) return [];
+    _messages.sort((msg1, msg2) {
+      if (msg1.timestamp.isBefore(msg2.timestamp)) {
+        return -1;
+      } else if (msg1.timestamp.isAfter(msg2.timestamp)) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
 
     List<dynamic> results = [];
-    DateTime? previousTime;
 
-    for (var msg in _messages.reversed) {
-      results.add(msg);
-      if (previousTime == null ||
-          msg.timestamp.difference(previousTime).inMinutes.abs() > 5) {
+    // for (var msg in _messages.reversed) {
+    //   results.add(msg);
+    //   if (previousSendMessageTime == null ||
+    //       msg.timestamp.difference(previousSendMessageTime!).inMinutes.abs() >
+    //           5) {
+    //     results.add(_createTimeGroup(msg.timestamp));
+    //     setState(() {
+    //       previousSendMessageTime = msg.timestamp;
+    //     });
+    //   }
+    // }
+
+    // 上一次的消息发送时间
+    DateTime? previousTimeStamp;
+
+    for (var msg in _messages) {
+      if (previousTimeStamp == null ||
+          msg.timestamp.difference(previousTimeStamp).inMinutes > 5) {
         results.add(_createTimeGroup(msg.timestamp));
-        previousTime = msg.timestamp;
+        previousTimeStamp = msg.timestamp;
       }
+      results.add(msg);
     }
+
     return results;
   }
 
@@ -487,21 +511,26 @@ class _ChatPageState extends State<ChatPage> {
           return _buildUploadingState(message);
         }
         final aspectRatio = _calculateAspectRatio(message);
+        final BorderRadius radius = _getContentRadius(message);
 
         return _ImageBubbleWrapper(
           aspectRatio: aspectRatio,
           child: ClipRRect(
-            borderRadius: _getContentRadius(message),
+            borderRadius: radius,
             child: InkWell(
               onTap: () => _openImageDetail(context, message.content),
               child: Hero(
                 tag: 'image_hero_${message.id}',
                 child: CacheNetworkImagePlus(
+                  borderRadius: radius,
                   imageUrl: message.content,
                   boxFit: BoxFit.cover,
                   errorWidget: _ImageBubbleWrapper(
                       aspectRatio: aspectRatio,
                       child: _buildErrorState(message)),
+                  boxDecoration: BoxDecoration(
+                    borderRadius: radius,
+                  ),
                 ),
               ),
             ),
@@ -645,16 +674,8 @@ class _ChatPageState extends State<ChatPage> {
         });
 
     try {
-      // // 模拟上传进度
-      // for (int i = 0; i <= 100; i += 10) {
-      //   await Future.delayed(const Duration(milliseconds: 200));
-      //   setState(() {
-      //     message.progress = i / 100;
-      //   });
-      // }
-
       final cosPath =
-          'tiny_stack_image_chat$currentUserId${DateTime.now().millisecondsSinceEpoch}';
+          'tiny_stack_image_chat${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
       final uploaderId = currentUserId;
 
       final imageUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
@@ -748,14 +769,6 @@ class _ChatPageState extends State<ChatPage> {
     final cosPath =
         'tiny_stack_image_chat${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
     final uploaderId = currentUserId;
-
-    // // 模拟上传进度
-    // for (int i = 0; i <= 100; i += 10) {
-    //   await Future.delayed(const Duration(milliseconds: 200));
-    //   setState(() {
-    //     message.progress = i / 100;
-    //   });
-    // }
 
     final imageUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
         imageFile.path, cosPath, uploaderId);
@@ -983,6 +996,7 @@ class _ChatPageState extends State<ChatPage> {
       aspectRatio: _calculateAspectRatio(message),
       child: Container(
         decoration: BoxDecoration(
+          borderRadius: _getContentRadius(message),
           gradient: LinearGradient(
             colors: [Colors.blue[50]!, Colors.purple[50]!],
             begin: Alignment.topLeft,
@@ -1110,13 +1124,13 @@ class _ChatPageState extends State<ChatPage> {
 
     final newMessage = ChatMessageItem(
       // TODO: 后期对所有的消息 ID 进行统一编制
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      id: cosPath,
       type: MessageType.audio,
-      // TODO: 替换为实际的云端音频 URL
+      // 替换为实际的云端音频 URL
       content: '',
       audioUrl: audioUrl,
-      // TODO: 实际需要计算音频时长
-      duration: Duration(seconds: 5),
+      // 计算音频时长
+      duration: await _calculateAudioDuration(audioUrl),
       timestamp: DateTime.now(),
       senderId: currentUserId,
       status: MessageStatus.sent,
@@ -1223,8 +1237,19 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   // TODO: 实现对于音频时长的计算
-  Duration _calculateAudioDuration(String filePath) {
-    return Duration(seconds: 5);
+  Future<Duration> _calculateAudioDuration(String audioUrl) async {
+    final player = AudioPlayer();
+    try {
+      await player.setSourceUrl(audioUrl);
+      final duration = await player.getDuration();
+      return duration ?? Duration.zero;
+    } catch (e) {
+      debugPrint(
+          '${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())} Error calculating audio duration: $e');
+      return Duration.zero;
+    } finally {
+      await player.dispose();
+    }
   }
 }
 
