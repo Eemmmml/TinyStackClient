@@ -128,7 +128,7 @@ List<ChatMessageItem> generateMockMessages() {
     ChatMessageItem(
       id: '6',
       // content: '项目文档已更新 https://picsum.photos/120/90',
-      content: 'https://picsum.photos/120/90',
+      content: '这是我的正则表达式测试文本https://picsum.photos/120/90后缀测试',
       timestamp: DateTime(now.year, now.month - 1, 28, 9, 15),
       senderId: 'user_456',
       senderName: 'Hel',

@@ -48,6 +48,7 @@ dependencies:
   image: ^4.0.0
   shimmer: ^3.0.0
   flutter_linkify: ^6.0.0
+  linkify_text: ^0.0.9
   url_launcher: ^6.0.0
   flutter_sound: ^9.0.0
   audioplayers: ^6.0.0

@@ -5,6 +5,7 @@ import 'package:cached_network_image_plus/flutter_cached_network_image_plus.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:flutter_sound/flutter_sound.dart';
+import 'package:linkify_text/linkify_text.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
@@ -117,17 +118,30 @@ class _ChatPageState extends State<ChatPage> {
         _showRecordingUI = false;
       });
     });
+
+    // 添加焦点变化监听器
+    _focusNode.addListener(_handleFocusChange);
   }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _focusNode.removeListener(_handleFocusChange);
     _focusNode.dispose();
     // 销毁录音控制器
     _recorder.closeRecorder();
     // 销毁音频播放器
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  // 处理焦点变化逻辑
+  void _handleFocusChange() {
+    if (_focusNode.hasFocus && _showRecordingUI) {
+      setState(() {
+        _showRecordingUI = false;
+      });
+    }
   }
 
   void _sendMessage() {
@@ -303,10 +317,10 @@ class _ChatPageState extends State<ChatPage> {
               icon: const Icon(Icons.mic),
               onPressed: () {
                 // TODO: 实现开关录音界面状态
+                FocusScope.of(context).unfocus();
                 setState(() {
                   _showRecordingUI = !_showRecordingUI;
                 });
-                FocusScope.of(context).unfocus();
               },
             ),
             // GestureDetector(
@@ -672,6 +686,17 @@ class _ChatPageState extends State<ChatPage> {
               );
             },
           ),
+          // child: SelectableRegion(
+          //     selectionControls: MaterialTextSelectionControls(),
+          //     child: LinkifyText(message.content,
+          //         linkColor: Colors.lightBlue,
+          //         fontColor: message.senderId == currentUserId
+          //             ? Colors.white
+          //             : Colors.black)),
+          // child: LinkifyText(
+          //   message.content,
+          //   linkColor: Colors.lightBlue,
+          // ),
         );
     }
   }
@@ -1272,7 +1297,7 @@ class _ChatPageState extends State<ChatPage> {
   // 构建录音界面
   Widget _buildRecordingUI() {
     return Container(
-      height: 300,
+      height: 290,
       width: double.infinity,
       color: Colors.white,
       padding: const EdgeInsets.all(20),
