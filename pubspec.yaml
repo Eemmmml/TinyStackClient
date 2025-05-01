@@ -55,6 +55,15 @@ dependencies:
   speech_to_text: ^7.0.0
   tencentcloud_cos_sdk_plugin: ^1.2.0
   cached_network_image_plus: ^0.0.4
+  just_audio: ^0.10.0
+  audio_service: ^0.18.0
+  audio_waveforms: ^1.0.0
+  retry: ^3.0.0
+  asr_plugin:
+    path: asr_plugin
+  tts_plugin:
+    path: tts_plugin
+
 
   flutter_localizations:
     sdk: flutter

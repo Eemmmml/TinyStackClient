@@ -10,6 +10,8 @@ class ChatMessageItem {
 
   // 语音文件地址
   final String audioUrl;
+  // tts 语言路径
+  String ttsAudioUrl;
 
   // 语音时长
   final Duration duration;
@@ -34,6 +36,7 @@ class ChatMessageItem {
     this.type = MessageType.text,
     this.avatarUrl = 'https://picsum.photos/200/200?random=4',
     this.audioUrl = '',
+    this.ttsAudioUrl = '',
     this.duration = Duration.zero,
     this.transcribedText = '',
     this.status = MessageStatus.sent,

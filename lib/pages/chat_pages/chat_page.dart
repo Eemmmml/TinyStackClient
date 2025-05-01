@@ -1,23 +1,28 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
+import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:cached_network_image_plus/flutter_cached_network_image_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:flutter_sound/flutter_sound.dart';
-import 'package:linkify_text/linkify_text.dart';
 import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:retry/retry.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:tinystack/entity/group_item.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../entity/chat_item.dart';
 import '../../entity/chat_message_item.dart';
+import '../../utils/audio_text_handle_utils.dart';
 import '../../utils/cloud_upload_utils.dart';
+import 'audio_message_bubble.dart';
 import 'group_info_page.dart';
 import 'image_detail_screen.dart';
 
@@ -54,8 +59,17 @@ class _ChatPageState extends State<ChatPage> {
   // 录音器
   final FlutterSoundRecorder _recorder = FlutterSoundRecorder();
 
+  // 音频录音器
+  late final RecorderController _recorderController;
+
+  // 音频播放控制器
+  late final PlayerController _playerController;
+
   // 语音播放器
   final AudioPlayer _audioPlayer = AudioPlayer();
+
+  // 语音转文字工具
+  final AudioTextHandleUtils _audioTextHandleUtils = AudioTextHandleUtils();
 
   // 是否展示录音界面
   bool _showRecordingUI = false;
@@ -69,8 +83,20 @@ class _ChatPageState extends State<ChatPage> {
   // 音频播放状态
   bool _isAudioPlaying = false;
 
+  // 文字阅读状态
+  bool _isTextReading = false;
+
+  // 录音时长
+  int _recordedSeconds = 0;
+
+  // 计时器
+  Timer? _recordingTimer;
+
   // 当前播放音频的 ID
   String? _currentAudioPlayingId;
+
+  // 当前阅读的文本消息的 ID
+  String? _currentReadingTextId;
 
   // TODO: 将永久密钥替换为获取的临时密钥
   // 腾讯云 SecretId
@@ -94,6 +120,7 @@ class _ChatPageState extends State<ChatPage> {
   // 图片上传工具
   late CloudUploadUtils _imageCloudUploadUtils;
 
+
   @override
   void initState() {
     super.initState();
@@ -103,6 +130,9 @@ class _ChatPageState extends State<ChatPage> {
     _audioPlayer.onPlayerComplete.listen((_) {
       setState(() {
         _isAudioPlaying = false;
+        _isTextReading = false;
+        _currentReadingTextId = null;
+        _currentAudioPlayingId = null;
       });
     });
 
@@ -119,8 +149,19 @@ class _ChatPageState extends State<ChatPage> {
       });
     });
 
+    // 初始化录音波形控制器
+    _recorderController = RecorderController()
+      ..androidEncoder = AndroidEncoder.aac
+      ..androidOutputFormat = AndroidOutputFormat.mpeg4
+      ..iosEncoder = IosEncoder.kAudioFormatMPEG4AAC
+      ..sampleRate = 16000;
+
+    // 初始化播放波形控制器
+    _playerController = PlayerController();
+
     // 添加焦点变化监听器
     _focusNode.addListener(_handleFocusChange);
+
   }
 
   @override
@@ -144,7 +185,7 @@ class _ChatPageState extends State<ChatPage> {
     }
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
@@ -154,6 +195,11 @@ class _ChatPageState extends State<ChatPage> {
         timestamp: DateTime.now(),
         senderId: currentUserId,
         type: MessageType.text);
+
+    // String ttsAudioUrl = await _audioTextHandleUtils.readText(newMessage);
+    // debugPrint('语音路径: $ttsAudioUrl');
+    //
+    // newMessage.ttsAudioUrl = ttsAudioUrl;
 
     setState(() {
       _messages.add(newMessage);
@@ -435,6 +481,7 @@ class _ChatPageState extends State<ChatPage> {
         mainAxisAlignment:
             isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           if (!isMe) _buildMessageAvatar(message, isMe),
           if (!isMe) const SizedBox(width: 4),
@@ -444,25 +491,13 @@ class _ChatPageState extends State<ChatPage> {
               crossAxisAlignment:
                   isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
-                // 群聊时显示用户名
-                if (widget.currentChat.isGroup)
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      left: 12,
-                      right: 12,
-                      top: 6,
-                      bottom: 12,
-                    ),
-                    child: Text(
-                      message.senderName,
-                      style: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment:
+                      isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.max,
+                  children: _buildHeaderRowChildren(isMe, message),
+                ),
                 _buildBubbleContent(message, isMe),
               ],
             ),
@@ -471,6 +506,50 @@ class _ChatPageState extends State<ChatPage> {
           if (isMe) _buildMessageAvatar(message, isMe),
         ],
       ),
+    );
+  }
+
+  // 构建消息头部
+  List<Widget> _buildHeaderRowChildren(bool isMe, ChatMessageItem message) {
+    final ttsButton = _buildTTSButton(message);
+
+    return [
+      if (isMe && message.type == MessageType.text) ttsButton,
+      if (widget.currentChat.isGroup)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            message.senderName,
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      if (!isMe && message.type == MessageType.text) ttsButton,
+    ];
+  }
+
+  // 提取公共按钮组件方法
+  Widget _buildTTSButton(ChatMessageItem message) {
+    return IconButton(
+      onPressed: () => _isTextReading
+          ? _stopTextToSpeech(message)
+          : _playTextToSpeech(message),
+      icon: Icon(Icons.volume_up,
+          size: 20,
+          color: (_isTextReading && _currentReadingTextId == message.id)
+              ? Colors.blue
+              : Colors.grey),
+      style: IconButton.styleFrom(
+          backgroundColor: Colors.grey[200],
+          padding: const EdgeInsets.all(4),
+          minimumSize: const Size(32, 32),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          )),
     );
   }
 
@@ -491,26 +570,31 @@ class _ChatPageState extends State<ChatPage> {
   // 构建气泡内容
   Widget _buildBubbleContent(ChatMessageItem message, bool isMe) {
     return GestureDetector(
-      // 拦截事件但不处理
-      onTap: () {},
-      child: Container(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.6,
-          minWidth: 0,
-        ),
-        decoration: BoxDecoration(
-          color: isMe ? Colors.blue : Colors.white,
-          borderRadius: _getBubbleRadius(isMe),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // 拦截事件但不处理
+        onTap: () {},
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: isMe ? Alignment.topLeft : Alignment.topRight,
           children: [
-            // 消息内容
-            _buildMessageContent(message),
+            Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.6,
+                minWidth: 0,
+              ),
+              decoration: BoxDecoration(
+                color: isMe ? Colors.blue : Colors.white,
+                borderRadius: _getBubbleRadius(isMe),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 消息内容
+                  _buildMessageContent(message),
+                ],
+              ),
+            ),
           ],
-        ),
-      ),
-    );
+        ));
   }
 
   // 获取消息气泡的圆角半径
@@ -593,7 +677,9 @@ class _ChatPageState extends State<ChatPage> {
           child: Image.network(message.content, width: 80, height: 80),
         );
       case MessageType.audio:
-        return _buildAudioBubbleContent(message);
+        // return _buildAudioBubbleContent(message);
+        return AudioMessageBubble(
+            message: message, currentUserId: currentUserId);
       default:
         return Padding(
           padding: const EdgeInsets.symmetric(
@@ -686,17 +772,6 @@ class _ChatPageState extends State<ChatPage> {
               );
             },
           ),
-          // child: SelectableRegion(
-          //     selectionControls: MaterialTextSelectionControls(),
-          //     child: LinkifyText(message.content,
-          //         linkColor: Colors.lightBlue,
-          //         fontColor: message.senderId == currentUserId
-          //             ? Colors.white
-          //             : Colors.black)),
-          // child: LinkifyText(
-          //   message.content,
-          //   linkColor: Colors.lightBlue,
-          // ),
         );
     }
   }
@@ -901,7 +976,7 @@ class _ChatPageState extends State<ChatPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -1116,6 +1191,7 @@ class _ChatPageState extends State<ChatPage> {
   Future<void> _startRecording() async {
     setState(() {
       _isRecording = true;
+      _recordedSeconds = 0;
     });
     try {
       // 检测设备存储权限
@@ -1132,7 +1208,22 @@ class _ChatPageState extends State<ChatPage> {
       final tempDir = await getTemporaryDirectory();
       final filePath =
           '${tempDir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.aac';
-      await _recorder.startRecorder(toFile: filePath, codec: Codec.aacADTS);
+
+      // await _recorder.startRecorder(toFile: filePath, codec: Codec.aacADTS);
+      // 使用 audio_waveforms 进行录音
+      await _recorderController.record(path: filePath);
+
+      // 启动计时器
+      _recordingTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        setState(() {
+          _recordedSeconds++;
+        });
+
+        // 达到 120 秒自动停止
+        if (_recordedSeconds >= 120) {
+          _stopRecording();
+        }
+      });
     } catch (e) {
       _showErrorSnackBar('开始录音失败：${e.toString()}');
       setState(() {
@@ -1143,19 +1234,31 @@ class _ChatPageState extends State<ChatPage> {
 
   // 停止录音并发送录音
   Future<void> _stopRecording() async {
-    setState(() {
-      _isRecording = false;
-    });
+    // 取消计时器
+    _recordingTimer?.cancel();
+    _recordingTimer = null;
+
     try {
-      final path = await _recorder.stopRecorder();
-      _sendVoiceMessage(path!);
+      // final path = await _recorder.stopRecorder();
+      // 停止录音并获取路径
+      final path = await _recorderController.stop();
+      if (path != null) {
+        _sendVoiceMessage(path);
+      }
     } catch (e) {
       _showErrorSnackBar('录音失败：${e.toString()}');
+    } finally {
+      setState(() {
+        _isRecording = false;
+        _recordedSeconds = 0;
+      });
     }
   }
 
   // 发送语音消息
-  Future<void> _sendVoiceMessage(String localPath) async {
+  Future<void> _sendVoiceMessage(
+    String localPath,
+  ) async {
     // TODO: 实际需要实现云存储上传
     // String audioUrl = await _uploadAudioToCloud(localPath);
     final cosPath =
@@ -1163,6 +1266,9 @@ class _ChatPageState extends State<ChatPage> {
     final uploaderId = currentUserId;
     String audioUrl = await _audioCloudUploadUtils.uploadLocalFileToCloud(
         localPath, cosPath, uploaderId);
+
+    String transcribedText =
+        await _audioTextHandleUtils.recognizeAudio(localPath);
 
     final newMessage = ChatMessageItem(
       // TODO: 后期对所有的消息 ID 进行统一编制
@@ -1176,6 +1282,7 @@ class _ChatPageState extends State<ChatPage> {
       timestamp: DateTime.now(),
       senderId: currentUserId,
       status: MessageStatus.sent,
+      transcribedText: transcribedText,
     );
 
     setState(() {
@@ -1188,6 +1295,7 @@ class _ChatPageState extends State<ChatPage> {
     // 当当前播放的语音消息的 ID 和当前消息 ID 相同，并且语音正在播放时，我们将暂停语音
     if (_currentAudioPlayingId == message.id && _isAudioPlaying) {
       await _audioPlayer.pause();
+      // await _playerController.pauseAllPlayers();
       setState(() {
         _isAudioPlaying = !_isAudioPlaying;
       });
@@ -1195,8 +1303,14 @@ class _ChatPageState extends State<ChatPage> {
       // 判断后选择语音资源来源
       if (message.audioUrl.startsWith('http') ||
           message.audioUrl.startsWith('https')) {
+        // 暂停正在播放的语音
+        await _audioPlayer.stop();
+        // 播放新的语音
         await _audioPlayer.play(UrlSource(message.audioUrl));
       } else {
+        // 暂停正在播放的语音
+        await _audioPlayer.stop();
+        // 播放新的语音
         await _audioPlayer.play(DeviceFileSource(message.audioUrl));
       }
       setState(() {
@@ -1232,6 +1346,7 @@ class _ChatPageState extends State<ChatPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 播放控制 + 波形
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1239,6 +1354,17 @@ class _ChatPageState extends State<ChatPage> {
                 icon: Icon(isCurrentPlaying ? Icons.pause : Icons.play_arrow),
                 color: isMe ? Colors.white : Colors.blue,
                 onPressed: () => _toggleAudioPlaying(message),
+              ),
+              Expanded(
+                child: AudioFileWaveforms(
+                  size: Size(200, 20),
+                  playerController: _playerController,
+                  waveformType: WaveformType.long,
+                  playerWaveStyle: PlayerWaveStyle(
+                    fixedWaveColor: isMe ? Colors.white54 : Colors.grey[200]!,
+                    liveWaveColor: isMe ? Colors.white : Colors.blue,
+                  ),
+                ),
               ),
               Text(
                 '${message.duration.inSeconds}秒',
@@ -1273,11 +1399,6 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  // TODO: 实现真实的语音识别
-  Future<String> _transcribe(String audioUrl) async {
-    return '模拟转写结果';
-  }
-
   // TODO: 实现对于音频时长的计算
   Future<Duration> _calculateAudioDuration(String audioUrl) async {
     final player = AudioPlayer();
@@ -1296,6 +1417,9 @@ class _ChatPageState extends State<ChatPage> {
 
   // 构建录音界面
   Widget _buildRecordingUI() {
+    final minutes = (_recordedSeconds ~/ 60).toString().padLeft(2, '0');
+    final seconds = (_recordedSeconds % 60).toString().padLeft(2, '0');
+
     return Container(
       height: 290,
       width: double.infinity,
@@ -1304,9 +1428,19 @@ class _ChatPageState extends State<ChatPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // 显示录音时长
+          Text(
+            '$minutes:$seconds',
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.red,
+            ),
+          ),
+          const SizedBox(height: 15),
           GestureDetector(
             onTapDown: (_) => _startRecording(),
-            onTapUp: (_) => _stopRecording(),
+            onLongPressUp: () => _stopRecording(),
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -1325,6 +1459,99 @@ class _ChatPageState extends State<ChatPage> {
         ],
       ),
     );
+  }
+
+  Future<bool> setAudioResourceWithRetry(String url,
+      {int? maxRetries, Duration? timeout}) async {
+    final encodeUrl = Uri.encodeFull(url);
+    final retryOptions = RetryOptions(
+      // 最多重试次数
+      maxAttempts: maxRetries ?? 1,
+      // 重试间隔
+      delayFactor: Duration(seconds: 1),
+    );
+
+    try {
+      await retryOptions.retry(
+        () async {
+          // 添加超时机制
+          await _audioPlayer
+              .setSourceUrl(encodeUrl)
+              .timeout(timeout ?? Duration(seconds: 5));
+        },
+        retryIf: (e) => _isRetryAbleError(e),
+      );
+      return true;
+    } catch (e) {
+      debugPrint('音频资源加载失败');
+      return false;
+    }
+  }
+
+  // 判断是否可重试的错误类型
+  bool _isRetryAbleError(dynamic error) {
+    return error is SocketException ||
+        error is HttpException ||
+        error is TimeoutException;
+  }
+
+  // 文字转语音播放方法
+  void _playTextToSpeech(ChatMessageItem message) async {
+    // 暂停已播放的语音
+    await _audioPlayer.stop();
+
+    setState(() {
+      _isAudioPlaying = false;
+      _isTextReading = true;
+      _currentReadingTextId = message.id;
+    });
+    try {
+      // 在这里处理文字转语音的懒加载逻辑
+      String ttsAudioUrl = '';
+      if (message.ttsAudioUrl.isEmpty) {
+        // 当文字语音没有加载，开始加载语音
+        ttsAudioUrl = await _audioTextHandleUtils.readText(message);
+        message.ttsAudioUrl = ttsAudioUrl;
+
+        _stopTextToSpeech(message);
+        _showToast('成功生成语音，请再次点击播放');
+
+        return;
+      } else {
+        // 当文字语音已经加载，直接使用语音
+        ttsAudioUrl = message.ttsAudioUrl;
+      }
+
+      // 播放文字转语音的语音
+      debugPrint('正在播放语音：$ttsAudioUrl');
+      // 设置语音资源
+      // await _audioPlayer.setSourceUrl(ttsAudioUrl);
+      final canPlay = await setAudioResourceWithRetry(ttsAudioUrl);
+      // 根据是否可以播放语音来采用不同的策略
+      if (canPlay) {
+        // 恢复语音播放
+        await _audioPlayer.resume();
+      } else {
+        _stopTextToSpeech(message);
+        _showErrorSnackBar('音频资源加载失败，请重试');
+      }
+    } catch (e) {
+      debugPrint('文字转语音播放错误：$e');
+    }
+  }
+
+  // 文字语音暂停方法
+  void _stopTextToSpeech(ChatMessageItem message) async {
+    setState(() {
+      _isTextReading = false;
+      _currentReadingTextId = null;
+    });
+    try {
+      // 暂停已播放的语音
+      await _audioPlayer.stop();
+    } catch (e) {
+      debugPrint('文字转语音暂停错误：$e');
+    }
   }
 }
 
