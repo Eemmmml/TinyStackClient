@@ -113,6 +113,9 @@ class _ChatPageState extends State<ChatPage> {
   // 图片腾讯云存储桶名称
   final String _imageBucket = 'tinystack-image-store-1356865752';
 
+  // 视频腾讯云存储桶名称
+  final String _videoBucket = 'tinystack-video-store-1356865752';
+
   // 腾讯云存储桶的服务器区域
   final String _region = 'ap-beijing';
 
@@ -121,6 +124,9 @@ class _ChatPageState extends State<ChatPage> {
 
   // 图片上传工具
   late CloudUploadUtils _imageCloudUploadUtils;
+
+  // 视频上传工具
+  late CloudUploadUtils _videoCloudUploadUtils;
 
   @override
   void initState() {
@@ -145,6 +151,17 @@ class _ChatPageState extends State<ChatPage> {
         bucketName: _voiceBucket,
         region: _region);
 
+    _videoCloudUploadUtils = CloudUploadUtils(
+        secretId: _secretId,
+        secretKey: _secretKey,
+        bucketName: _videoBucket,
+        region: _region);
+
+    _imageCloudUploadUtils = CloudUploadUtils(
+        secretId: _secretId,
+        secretKey: _secretKey,
+        bucketName: _imageBucket,
+        region: _region);
     // 为滚动控制器添加监听器
     _scrollController.addListener(() {
       setState(() {
@@ -385,11 +402,18 @@ class _ChatPageState extends State<ChatPage> {
                 try {
                   final result = await VideoRecorderPage.navigate(context);
 
+                  String? photoPath = result['photoPath'];
                   String? videoPath = result['videoPath'];
                   String? thumbnailPath = result['thumbnailPath'];
 
+                  if (photoPath != null) {
+                    _sendPhotoMessage(photoPath);
+                  } else if (videoPath != null && thumbnailPath != null) {
+                    _sendVideoMessage(videoPath, thumbnailPath);
+                  }
+
                   debugPrint(
-                      'videoPath: $videoPath      thumbnailPath: $thumbnailPath');
+                      '${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}:\nvideoPath: $videoPath\nthumbnailPath: $thumbnailPath\nphotoPath: $photoPath');
                 } catch (e) {
                   debugPrint('VideoError: $e');
                 }
@@ -637,7 +661,7 @@ class _ChatPageState extends State<ChatPage> {
         final aspectRatio = _calculateAspectRatio(message);
         final BorderRadius radius = _getContentRadius(message);
 
-        return _ImageBubbleWrapper(
+        return _BubbleWrapper(
           aspectRatio: aspectRatio,
           child: ClipRRect(
             borderRadius: radius,
@@ -649,9 +673,9 @@ class _ChatPageState extends State<ChatPage> {
                   borderRadius: radius,
                   imageUrl: message.content,
                   boxFit: BoxFit.cover,
-                  errorWidget: _ImageBubbleWrapper(
+                  errorWidget: _BubbleWrapper(
                       aspectRatio: aspectRatio,
-                      child: _buildErrorState(message)),
+                      child: _buildRetryState(message)),
                   boxDecoration: BoxDecoration(
                     borderRadius: radius,
                   ),
@@ -661,16 +685,42 @@ class _ChatPageState extends State<ChatPage> {
           ),
         );
       case MessageType.video:
+        if (message.status == MessageStatus.uploading) {
+          // 上传中的状态
+          return _buildUploadingState(message);
+        }
+
+        final aspectRatio = _calculateAspectRatio(message);
+        final BorderRadius radius = _getContentRadius(message);
         return ClipRRect(
           borderRadius: _getContentRadius(message),
           child: Stack(
             alignment: Alignment.center,
             children: [
-              Image.network(
-                'https://picsum.photos/120/90?random=4',
-                width: double.infinity,
-                height: 180,
-                fit: BoxFit.cover,
+              _BubbleWrapper(
+                aspectRatio: aspectRatio,
+                child: ClipRRect(
+                  borderRadius: radius,
+                  child: InkWell(
+                    onTap: () => _openImageDetail(context, message.content),
+                    child: Hero(
+                      tag: 'image_hero_${message.id}',
+                      child: CacheNetworkImagePlus(
+                        borderRadius: radius,
+                        imageUrl: message.content.isNotEmpty
+                            ? message.content
+                            : 'https://picsum.photos/120/90?random=4',
+                        boxFit: BoxFit.cover,
+                        errorWidget: _BubbleWrapper(
+                            aspectRatio: aspectRatio,
+                            child: _buildErrorState(message)),
+                        boxDecoration: BoxDecoration(
+                          borderRadius: radius,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
               const Icon(
                 Icons.play_circle_outline,
@@ -807,8 +857,12 @@ class _ChatPageState extends State<ChatPage> {
       final imageUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
           file.path, cosPath, uploaderId);
 
+      // if (await file.exists()) {
+      //   file.delete();
+      // }
+
       // 等待一段时间来保证腾讯云 COS 服务正确同步我们上传的数据
-      await Future.delayed(const Duration(milliseconds: 1000));
+      await Future.delayed(const Duration(milliseconds: 2000));
       setState(() {
         // 替换为真实云端 URL
         message.content = imageUrl;
@@ -1118,7 +1172,7 @@ class _ChatPageState extends State<ChatPage> {
 
 // 修改上传状态组件
   Widget _buildUploadingState(ChatMessageItem message) {
-    return _ImageBubbleWrapper(
+    return _BubbleWrapper(
       aspectRatio: _calculateAspectRatio(message),
       child: Container(
         decoration: BoxDecoration(
@@ -1185,6 +1239,40 @@ class _ChatPageState extends State<ChatPage> {
             ),
             onPressed: () => _retryUpload(message),
             child: Text('重试上传', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+// 错误状态组件
+  Widget _buildRetryState(ChatMessageItem message) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.red[50]!, Colors.orange[50]!],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline_rounded, size: 40, color: Colors.red[400]),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              side: BorderSide(color: Colors.red),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+            onPressed: () {
+              setState(() {
+                message.key = '1';
+              });
+            },
+            child: Text('重试加载', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -1279,6 +1367,11 @@ class _ChatPageState extends State<ChatPage> {
     String transcribedText =
         await _audioTextHandleUtils.recognizeAudio(localPath);
 
+    final audioFile = File(localPath);
+    // if (await audioFile.exists()) {
+    //   audioFile.delete();
+    // }
+
     final newMessage = ChatMessageItem(
       // TODO: 后期对所有的消息 ID 进行统一编制
       id: cosPath,
@@ -1296,6 +1389,131 @@ class _ChatPageState extends State<ChatPage> {
 
     setState(() {
       _messages.add(newMessage);
+    });
+
+    // 滚动到最新消息
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(0,
+            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      }
+    });
+  }
+
+  // 发送摄影的视频消息
+  Future<void> _sendVideoMessage(String videoPath, String thumbnailPath) async {
+    final videoCosPath =
+        'tiny_stack_shot_video_chat_${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
+    final thumbnailCosPath =
+        'tiny_stack_video_thumbnail_chat_${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
+    final videoFile = File(videoPath);
+    final thumbnailFile = File(thumbnailPath);
+
+    final newMessage = ChatMessageItem(
+        id: videoCosPath,
+        content: '',
+        timestamp: DateTime.now(),
+        status: MessageStatus.uploading,
+        type: MessageType.video,
+        senderId: currentUserId);
+
+    setState(() {
+      _messages.add(newMessage);
+    });
+
+    final thumbnailUrl = await _uploadImageToCloud(thumbnailFile, newMessage);
+    // final thumbnailUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
+    //     thumbnailPath, thumbnailCosPath, newMessage.id);
+    final videoUrl = await _videoCloudUploadUtils.uploadLocalFileToCloud(
+        videoPath, videoCosPath, newMessage.id);
+
+    // // 删除本地文件
+    // if (await videoFile.exists()) {
+    //   videoFile.delete();
+    // }
+    //
+    // if (await thumbnailFile.exists()) {
+    //   thumbnailFile.delete();
+    // }
+
+    // 滚动到最新消息
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(0,
+            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      }
+    });
+
+    await Future.delayed(const Duration(milliseconds: 5000));
+    setState(() {
+      newMessage.content = thumbnailUrl;
+      newMessage.videoUrl = videoUrl;
+      newMessage.status = MessageStatus.sent;
+    });
+  }
+
+  // 发送照片的消息
+  Future<void> _sendPhotoMessage(String photoPath) async {
+    final cosPath =
+        'tiny_stack_shot_photo_chat_${currentUserId}_${DateTime.now().millisecondsSinceEpoch}';
+
+    final newMessage = ChatMessageItem(
+        id: cosPath,
+        content: '',
+        timestamp: DateTime.now(),
+        status: MessageStatus.uploading,
+        type: MessageType.image,
+        senderId: currentUserId);
+
+    _imageCloudUploadUtils = CloudUploadUtils(
+        secretId: _secretId,
+        secretKey: _secretKey,
+        bucketName: _imageBucket,
+        region: _region,
+        progressCallBack: (complete, target) {
+          // 实际的上传进度
+          setState(() {
+            newMessage.progress = complete / target;
+          });
+        },
+        successCallBack: (handler, result) {
+          debugPrint('success Result: ${result.toString()}');
+        });
+
+    try {
+      setState(() {
+        _messages.add(newMessage);
+      });
+
+      final photoUrl = await _imageCloudUploadUtils.uploadLocalFileToCloud(
+          photoPath, cosPath, newMessage.id);
+
+      await Future.delayed(const Duration(milliseconds: 4000));
+      setState(() {
+        newMessage.content = photoUrl;
+        newMessage.status = MessageStatus.sent;
+      });
+
+      debugPrint('PhotoUrl: $photoUrl');
+
+      // final photoFile = File(photoPath);
+      // // 删除本地文件
+      // if (await photoFile.exists()) {
+      //   photoFile.delete();
+      // }
+    } catch (e) {
+      setState(() {
+        newMessage.status = MessageStatus.failed;
+        debugPrint('照片上传失败：$e');
+      });
+    }
+
+    // 滚动到最新消息
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(0,
+            duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+      }
     });
   }
 
@@ -1558,14 +1776,21 @@ class _ChatPageState extends State<ChatPage> {
 }
 
 // 统一尺寸包装组件
-class _ImageBubbleWrapper extends StatelessWidget {
+class _BubbleWrapper extends StatefulWidget {
   final double aspectRatio;
   final Widget child;
 
-  const _ImageBubbleWrapper({
+  const _BubbleWrapper({
     required this.aspectRatio,
     required this.child,
   });
+
+  @override
+  State<_BubbleWrapper> createState() => _BubbleWrapperState();
+}
+
+class _BubbleWrapperState extends State<_BubbleWrapper> {
+  UniqueKey key = UniqueKey();
 
   @override
   Widget build(BuildContext context) {
@@ -1575,8 +1800,8 @@ class _ImageBubbleWrapper extends StatelessWidget {
         maxHeight: MediaQuery.of(context).size.height * 0.4,
       ),
       child: AspectRatio(
-        aspectRatio: aspectRatio,
-        child: child,
+        aspectRatio: widget.aspectRatio,
+        child: widget.child,
       ),
     );
   }

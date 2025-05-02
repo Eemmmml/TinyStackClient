@@ -262,6 +262,10 @@ class AudioTextHandleUtils {
         ttsAudioUrl = await ttsCloudUploadUtil.uploadLocalFileToCloud(
             file.path, cosPath, message.senderId);
 
+        // if (await file.exists()) {
+        //   file.delete();
+        // }
+
         message.ttsAudioUrl = ttsAudioUrl;
 
         debugPrint('语音合成成功：$ttsAudioUrl');

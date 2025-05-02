@@ -60,6 +60,7 @@ dependencies:
   retry: ^3.0.0
   camera: ^0.11.0
   video_thumbnail: ^0.5.0
+  flutter_openim_sdk: ^3.0.0
   asr_plugin:
     path: asr_plugin
   tts_plugin:

@@ -10,8 +10,12 @@ class ChatMessageItem {
 
   // 语音文件地址
   final String audioUrl;
+
   // tts 语言路径
   String ttsAudioUrl;
+
+  // 视频文件路径
+  String videoUrl;
 
   // 语音时长
   final Duration duration;
@@ -26,6 +30,7 @@ class ChatMessageItem {
 
   // 消息上传进度 0-1
   double? progress;
+  String key;
 
   ChatMessageItem({
     required this.id,
@@ -37,12 +42,14 @@ class ChatMessageItem {
     this.avatarUrl = 'https://picsum.photos/200/200?random=4',
     this.audioUrl = '',
     this.ttsAudioUrl = '',
+    this.videoUrl = '',
     this.duration = Duration.zero,
     this.transcribedText = '',
     this.status = MessageStatus.sent,
-    this.progress,
+    this.progress = 0,
     this.width,
     this.height,
+    this.key = '',
   });
 }
 

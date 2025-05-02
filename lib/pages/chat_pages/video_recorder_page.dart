@@ -151,6 +151,46 @@ class _VideoRecorderPageState extends State<VideoRecorderPage>
         children: [
           _buildCameraPreview(),
           _buildGestureControlButton(),
+          _buildBackGestureControlButton(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBackGestureControlButton() {
+    return Align(
+      alignment: Alignment.bottomLeft,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Container(
+            margin: const EdgeInsets.only(left: 20, bottom: 40),
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.3),
+                        blurRadius: 8,
+                        spreadRadius: 2,
+                      ),
+                    ]),
+                child: Icon(
+                  Icons.cancel_outlined,
+                  color: Colors.black,
+                  size: 20,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
         ],
       ),
     );
@@ -340,47 +380,6 @@ class _VideoRecorderPageState extends State<VideoRecorderPage>
     }
   }
 
-  // 长按开始录制
-  void _onLongPressStart() {
-    if (!_isCameraReady || _isProcessing) return;
-
-    setState(() {
-      _isProcessing = true;
-    });
-
-    _startVideoRecording();
-
-    // 更新录制时间（每秒更新一次）
-    _holdTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      setState(() {
-        _recordDuration = timer.tick;
-      });
-    });
-  }
-
-  // 松手或滑动取消停止录制
-  void _onLongPressEnd(LongPressEndDetails details) {
-    _holdTimer?.cancel();
-    if (_isRecording) {
-      _stopVideoRecording();
-    }
-    setState(() {
-      _isProcessing = false;
-      _recordDuration = 0;
-    });
-  }
-
-  // 滑动取消录制，如手指滑出按钮区域
-  void _onPanEnd(DragEndDetails details) {
-    if (_isRecording) {
-      _cancelRecording();
-    }
-    setState(() {
-      _isProcessing = false;
-      _recordDuration = 0;
-    });
-  }
-
   Future<void> _startVideoRecording() async {
     debugPrint('开始录像');
     try {
@@ -453,12 +452,6 @@ class _VideoRecorderPageState extends State<VideoRecorderPage>
         _isRecording = false;
         _recordDuration = 0;
       });
-
-      // 后续进行视频数据上传时，上传后进行本地数据清理
-      // if (_videoPath != null) {
-      //   final file = File(_videoPath!);
-      //   if (await file.exists()) await file.delete();
-      // }
     } catch (e) {
       debugPrint('视频录制取消失败: $e');
       _showErrorSnackBar('视频录制取消失败');
