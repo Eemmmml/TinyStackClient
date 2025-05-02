@@ -2,7 +2,9 @@ import 'dart:math';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:tinystack/entity/chat_message_item.dart';
+import 'package:tinystack/managers/audio_player_provider.dart';
 
 class AudioMessageBubble extends StatefulWidget {
   final ChatMessageItem message;
@@ -23,13 +25,13 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
   late AudioPlayer _audioPlayer;
 
   // 音频播放进度
-  double _audioProgress = 0.0;
+  // double _audioProgress = 0.0;
 
   // 音频是否在播放音频
-  bool _isAudioPlaying = false;
+  // bool _isAudioPlaying = false;
 
   // 当前播放音频的 ID
-  String? _currentAudioPlayingId;
+  // String? _currentAudioPlayingId;
 
   // 文字展开状态
   bool _isTranscriptionExpanded = false;
@@ -40,31 +42,8 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
   void initState() {
     super.initState();
     // 初始化音频播放器
-    _audioPlayer = AudioPlayer()..setReleaseMode(ReleaseMode.stop);
-
-    // 音频播放器播放状态变化监听
-    _audioPlayer.onPlayerStateChanged.listen((PlayerState state) {
-      if (state == PlayerState.stopped && _isAudioPlaying) {
-        _stopAudio();
-      }
-    });
-
-    // 音频播放器播放位置监听
-    _audioPlayer.onPositionChanged.listen((Duration position) async {
-      final duration = await _audioPlayer.getDuration();
-      if (duration == null || duration.inMilliseconds == 0) return;
-
-      final newProgress = position.inMilliseconds / duration.inMilliseconds;
-      if (newProgress >= 1.0) {
-        _stopAudio();
-      } else {
-        setState(() {
-          _audioProgress = newProgress;
-        });
-      }
-    });
-
-    _audioPlayer.onPlayerComplete.listen((_) => _stopAudio());
+    final audioPlayer = context.read<AudioPlayerProvider>();
+    audioPlayer.initPlayer();
   }
 
   @override
@@ -75,28 +54,9 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
 
   // 切换音频播放状态
   void _toggleAudioPlaying(ChatMessageItem message) async {
+    final audioPlayer = context.read<AudioPlayerProvider>();
     try {
-      if (_currentAudioPlayingId == message.id && _isAudioPlaying) {
-        _audioPlayer.pause();
-        setState(() {
-          _isAudioPlaying = false;
-        });
-      } else {
-        // 停止播放当前语音
-        if (_currentAudioPlayingId != null) {
-          await _audioPlayer.stop();
-        }
-
-        // 加载播放新语音音频播放
-        _currentAudioPlayingId = message.id;
-        await _audioPlayer.play(UrlSource(message.audioUrl));
-
-        // 启动进度更新
-        setState(() {
-          _isAudioPlaying = true;
-        });
-        // _updateProgress();
-      }
+      audioPlayer.toggleAudioPlayingState(message.id, message.audioUrl);
     } catch (e) {
       debugPrint('播放错误: $e');
       _stopAudio();
@@ -105,16 +65,8 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
 
   // 停止播放语音
   void _stopAudio() {
-    _audioPlayer.stop().then((_) {
-      _audioPlayer.seek(Duration.zero);
-      if (mounted) {
-        setState(() {
-          _isAudioPlaying = false;
-          _audioProgress = 0.0;
-          _currentAudioPlayingId = null;
-        });
-      }
-    });
+    final audioPlayer = context.read<AudioPlayerProvider>();
+    audioPlayer.stop();
   }
 
   // 展示语音转文字菜单
@@ -158,9 +110,8 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
   @override
   Widget build(BuildContext context) {
     final isMe = widget.currentUserId == widget.message.senderId;
-    final isCurrentPlaying =
-        _currentAudioPlayingId == widget.message.id && _isAudioPlaying;
     final maxBubbleWidth = MediaQuery.of(context).size.width * 0.5;
+    final audioPlayer = context.watch<AudioPlayerProvider>();
 
     return Column(
       children: [
@@ -188,65 +139,128 @@ class _AudioMessageBubbleState extends State<AudioMessageBubble> {
                 Positioned.fill(
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: CustomPaint(
-                      painter: _AudioBubbleProgressPainter(
-                        progress: _audioProgress,
-                        activeColor:
-                            isMe ? Colors.blue.shade800 : Colors.grey[400]!,
-                        backgroundColor:
-                            isMe ? Colors.blue.shade300 : Colors.grey[300]!,
-                      ),
-                    ),
+                    child: Consumer(builder: (context, provider, child) {
+                      return CustomPaint(
+                        painter: _AudioBubbleProgressPainter(
+                          progress: audioPlayer.audioProgress,
+                          activeColor:
+                              isMe ? Colors.blue.shade800 : Colors.grey[400]!,
+                          backgroundColor:
+                              isMe ? Colors.blue.shade300 : Colors.grey[300]!,
+                        ),
+                      );
+                    }),
                   ),
                 ),
                 Padding(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(
-                            isCurrentPlaying ? Icons.pause : Icons.play_arrow,
-                            color: isMe ? Colors.white : Colors.blue,
-                            size: 24,
-                            key: ValueKey(isCurrentPlaying)),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Stack(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Consumer<AudioPlayerProvider>(
+                    builder: (context, provider, child) {
+                      // final isCurrentPlaying =
+                      //     provider.currentAudioId == widget.message.id && provider.isAudioPlaying;
+
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 200),
+                            child: Icon(
+                                (provider.currentAudioId == widget.message.id &&
+                                        provider.isAudioPlaying)
+                                    ? Icons.pause
+                                    : Icons.play_arrow,
+                                color: isMe ? Colors.white : Colors.blue,
+                                size: 24,
+                                key: ValueKey(provider.currentAudioId ==
+                                        widget.message.id &&
+                                    provider.isAudioPlaying)),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Stack(
                               children: [
-                                _AudioWaveForm(
-                                  duration: widget.message.duration,
-                                  progress: _audioProgress,
-                                  playedColor:
-                                      isMe ? Colors.white : Colors.blue,
-                                  unplayedColor: Colors.grey[300]!,
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    _AudioWaveForm(
+                                      duration: widget.message.duration,
+                                      progress: audioPlayer.audioProgress,
+                                      playedColor:
+                                          isMe ? Colors.white : Colors.blue,
+                                      unplayedColor: Colors.grey[300]!,
+                                    ),
+                                    const SizedBox(height: 4),
+                                  ],
                                 ),
-                                const SizedBox(height: 4),
+                                Positioned(
+                                  right: 1,
+                                  child: Text(
+                                    '${widget.message.duration.inSeconds}秒',
+                                    style: TextStyle(
+                                      color: isMe
+                                          ? Colors.white70
+                                          : Colors.blueGrey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
-                            Positioned(
-                              right: 1,
-                              child: Text(
-                                '${widget.message.duration.inSeconds}秒',
-                                style: TextStyle(
-                                  color:
-                                      isMe ? Colors.white70 : Colors.blueGrey,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                          ),
+                        ],
+                      );
+                    },
                   ),
                 ),
+                // Padding(
+                //   padding:
+                //       const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                //   child: Row(
+                //     mainAxisSize: MainAxisSize.min,
+                //     children: [
+                //       AnimatedSwitcher(
+                //         duration: const Duration(milliseconds: 200),
+                //         child: Icon(
+                //             isCurrentPlaying ? Icons.pause : Icons.play_arrow,
+                //             color: isMe ? Colors.white : Colors.blue,
+                //             size: 24,
+                //             key: ValueKey(isCurrentPlaying)),
+                //       ),
+                //       const SizedBox(width: 12),
+                //       Expanded(
+                //         child: Stack(
+                //           children: [
+                //             Column(
+                //               crossAxisAlignment: CrossAxisAlignment.start,
+                //               children: [
+                //                 _AudioWaveForm(
+                //                   duration: widget.message.duration,
+                //                   progress: _audioProgress,
+                //                   playedColor:
+                //                       isMe ? Colors.white : Colors.blue,
+                //                   unplayedColor: Colors.grey[300]!,
+                //                 ),
+                //                 const SizedBox(height: 4),
+                //               ],
+                //             ),
+                //             Positioned(
+                //               right: 1,
+                //               child: Text(
+                //                 '${widget.message.duration.inSeconds}秒',
+                //                 style: TextStyle(
+                //                   color:
+                //                       isMe ? Colors.white70 : Colors.blueGrey,
+                //                   fontSize: 12,
+                //                 ),
+                //               ),
+                //             ),
+                //           ],
+                //         ),
+                //       ),
+                //     ],
+                //   ),
+                // ),
                 if (widget.message.transcribedText == null ||
                     widget.message.transcribedText!.isEmpty)
                   Positioned(

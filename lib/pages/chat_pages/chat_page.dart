@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 
 import 'package:audio_waveforms/audio_waveforms.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -13,6 +12,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:provider/provider.dart';
 import 'package:retry/retry.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:tinystack/entity/group_item.dart';
@@ -20,11 +20,13 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../entity/chat_item.dart';
 import '../../entity/chat_message_item.dart';
+import '../../managers/audio_player_provider.dart';
 import '../../utils/audio_text_handle_utils.dart';
 import '../../utils/cloud_upload_utils.dart';
 import 'audio_message_bubble.dart';
 import 'group_info_page.dart';
 import 'image_detail_screen.dart';
+import 'video_recorder_page.dart';
 
 class ChatPage extends StatefulWidget {
   final ChatItem currentChat;
@@ -66,7 +68,7 @@ class _ChatPageState extends State<ChatPage> {
   late final PlayerController _playerController;
 
   // 语音播放器
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  // final AudioPlayer _audioPlayer = AudioPlayer();
 
   // 语音转文字工具
   final AudioTextHandleUtils _audioTextHandleUtils = AudioTextHandleUtils();
@@ -81,9 +83,9 @@ class _ChatPageState extends State<ChatPage> {
   bool _isRecording = false;
 
   // 音频播放状态
-  bool _isAudioPlaying = false;
+  // bool _isAudioPlaying = false;
 
-  // 文字阅读状态
+  //文字阅读状态
   bool _isTextReading = false;
 
   // 录音时长
@@ -93,7 +95,7 @@ class _ChatPageState extends State<ChatPage> {
   Timer? _recordingTimer;
 
   // 当前播放音频的 ID
-  String? _currentAudioPlayingId;
+  // String? _currentAudioPlayingId;
 
   // 当前阅读的文本消息的 ID
   String? _currentReadingTextId;
@@ -120,21 +122,22 @@ class _ChatPageState extends State<ChatPage> {
   // 图片上传工具
   late CloudUploadUtils _imageCloudUploadUtils;
 
-
   @override
   void initState() {
     super.initState();
     _messages.addAll(mockMessages);
     // 初始化录音控制器
     _initRecorder();
-    _audioPlayer.onPlayerComplete.listen((_) {
-      setState(() {
-        _isAudioPlaying = false;
-        _isTextReading = false;
-        _currentReadingTextId = null;
-        _currentAudioPlayingId = null;
-      });
-    });
+    // _audioPlayer.onPlayerComplete.listen((_) {
+    //   setState(() {
+    //     _isAudioPlaying = false;
+    //     _isTextReading = false;
+    //     _currentReadingTextId = null;
+    //     _currentAudioPlayingId = null;
+    //   });
+    // });
+    final audioPlayer = context.read<AudioPlayerProvider>();
+    audioPlayer.initPlayer();
 
     _audioCloudUploadUtils = CloudUploadUtils(
         secretId: _secretId,
@@ -161,7 +164,6 @@ class _ChatPageState extends State<ChatPage> {
 
     // 添加焦点变化监听器
     _focusNode.addListener(_handleFocusChange);
-
   }
 
   @override
@@ -172,7 +174,7 @@ class _ChatPageState extends State<ChatPage> {
     // 销毁录音控制器
     _recorder.closeRecorder();
     // 销毁音频播放器
-    _audioPlayer.dispose();
+    // _audioPlayer.dispose();
     super.dispose();
   }
 
@@ -369,19 +371,6 @@ class _ChatPageState extends State<ChatPage> {
                 });
               },
             ),
-            // GestureDetector(
-            //   onLongPress: _startRecording,
-            //   onLongPressUp: _stopRecording,
-            //   child: Container(
-            //     padding: EdgeInsets.all(8),
-            //     decoration: BoxDecoration(
-            //       shape: BoxShape.circle,
-            //       color: _isRecording ? Colors.red : null,
-            //     ),
-            //     child: Icon(_isRecording ? Icons.mic_off : Icons.mic,
-            //         color: _isRecording ? Colors.white : Colors.black),
-            //   ),
-            // ),
             IconButton(
               icon: const Icon(Icons.image),
               onPressed: () {
@@ -390,9 +379,20 @@ class _ChatPageState extends State<ChatPage> {
               },
             ),
             IconButton(
-              icon: const Icon(Icons.videocam),
-              onPressed: () {
+              icon: const Icon(Icons.camera_alt_rounded),
+              onPressed: () async {
                 // TODO: 实现视频发送逻辑
+                try {
+                  final result = await VideoRecorderPage.navigate(context);
+
+                  String? videoPath = result['videoPath'];
+                  String? thumbnailPath = result['thumbnailPath'];
+
+                  debugPrint(
+                      'videoPath: $videoPath      thumbnailPath: $thumbnailPath');
+                } catch (e) {
+                  debugPrint('VideoError: $e');
+                }
               },
             ),
             IconButton(
@@ -533,23 +533,32 @@ class _ChatPageState extends State<ChatPage> {
 
   // 提取公共按钮组件方法
   Widget _buildTTSButton(ChatMessageItem message) {
-    return IconButton(
-      onPressed: () => _isTextReading
-          ? _stopTextToSpeech(message)
-          : _playTextToSpeech(message),
-      icon: Icon(Icons.volume_up,
-          size: 20,
-          color: (_isTextReading && _currentReadingTextId == message.id)
-              ? Colors.blue
-              : Colors.grey),
-      style: IconButton.styleFrom(
-          backgroundColor: Colors.grey[200],
-          padding: const EdgeInsets.all(4),
-          minimumSize: const Size(32, 32),
-          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          )),
+    final audioPlayer = context.watch<AudioPlayerProvider>();
+    return Consumer<AudioPlayerProvider>(
+      builder: (context, provider, child) {
+        debugPrint('bool1: ${audioPlayer.isTextReading}');
+        debugPrint(
+            'bool2: ${audioPlayer.isTextReading && audioPlayer.currentReadingTextId == message.id}');
+        return IconButton(
+          onPressed: () => audioPlayer.isTextReading
+              ? _stopTextToSpeech(message)
+              : _playTextToSpeech(message),
+          icon: Icon(Icons.volume_up,
+              size: 20,
+              color: (audioPlayer.isTextReading &&
+                      audioPlayer.currentReadingTextId == message.id)
+                  ? Colors.blue
+                  : Colors.grey),
+          style: IconButton.styleFrom(
+              backgroundColor: Colors.grey[200],
+              padding: const EdgeInsets.all(4),
+              minimumSize: const Size(32, 32),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              )),
+        );
+      },
     );
   }
 
@@ -1292,31 +1301,14 @@ class _ChatPageState extends State<ChatPage> {
 
   // 播放暂停控制
   Future<void> _toggleAudioPlaying(ChatMessageItem message) async {
+    final audioPlayer = context.read<AudioPlayerProvider>();
+
     // 当当前播放的语音消息的 ID 和当前消息 ID 相同，并且语音正在播放时，我们将暂停语音
-    if (_currentAudioPlayingId == message.id && _isAudioPlaying) {
-      await _audioPlayer.pause();
-      // await _playerController.pauseAllPlayers();
-      setState(() {
-        _isAudioPlaying = !_isAudioPlaying;
-      });
+    if (audioPlayer.currentAudioId == message.id &&
+        audioPlayer.isAudioPlaying) {
+      await audioPlayer.pauseAudio();
     } else {
-      // 判断后选择语音资源来源
-      if (message.audioUrl.startsWith('http') ||
-          message.audioUrl.startsWith('https')) {
-        // 暂停正在播放的语音
-        await _audioPlayer.stop();
-        // 播放新的语音
-        await _audioPlayer.play(UrlSource(message.audioUrl));
-      } else {
-        // 暂停正在播放的语音
-        await _audioPlayer.stop();
-        // 播放新的语音
-        await _audioPlayer.play(DeviceFileSource(message.audioUrl));
-      }
-      setState(() {
-        _currentAudioPlayingId = message.id;
-        _isAudioPlaying = !_isAudioPlaying;
-      });
+      audioPlayer.toggleAudioPlayingState(message.id, message.audioUrl);
     }
   }
 
@@ -1331,9 +1323,10 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Widget _buildAudioBubbleContent(ChatMessageItem message) {
+    final audioPlayer = context.read<AudioPlayerProvider>();
     bool isMe = currentUserId == message.senderId;
     final isCurrentPlaying =
-        _currentAudioPlayingId == message.id && _isAudioPlaying;
+        audioPlayer.currentAudioId == message.id && audioPlayer.isAudioPlaying;
     final maxWidth = MediaQuery.of(context).size.width * 0.5;
 
     return Container(
@@ -1461,8 +1454,9 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Future<bool> setAudioResourceWithRetry(String url,
+  Future<bool> setTextReadingResourceWithRetry(String url,
       {int? maxRetries, Duration? timeout}) async {
+    final audioPlay = context.read<AudioPlayerProvider>();
     final encodeUrl = Uri.encodeFull(url);
     final retryOptions = RetryOptions(
       // 最多重试次数
@@ -1474,10 +1468,7 @@ class _ChatPageState extends State<ChatPage> {
     try {
       await retryOptions.retry(
         () async {
-          // 添加超时机制
-          await _audioPlayer
-              .setSourceUrl(encodeUrl)
-              .timeout(timeout ?? Duration(seconds: 5));
+          await audioPlay.setAudioSource(encodeUrl, Duration(seconds: 1));
         },
         retryIf: (e) => _isRetryAbleError(e),
       );
@@ -1497,24 +1488,32 @@ class _ChatPageState extends State<ChatPage> {
 
   // 文字转语音播放方法
   void _playTextToSpeech(ChatMessageItem message) async {
-    // 暂停已播放的语音
-    await _audioPlayer.stop();
+    debugPrint('启动文字转语音服务');
+    final audioPlayer = context.read<AudioPlayerProvider>();
 
+    // 暂停已播放的语音
+    debugPrint('正在暂停播放中的语音');
+    await audioPlayer.stop();
+
+    debugPrint('正在更新状态');
     setState(() {
-      _isAudioPlaying = false;
+      audioPlayer.isAudioPlaying = false;
+      audioPlayer.isTextReading = true;
       _isTextReading = true;
-      _currentReadingTextId = message.id;
+      audioPlayer.currentReadingTextId = message.id;
     });
+
     try {
       // 在这里处理文字转语音的懒加载逻辑
       String ttsAudioUrl = '';
       if (message.ttsAudioUrl.isEmpty) {
         // 当文字语音没有加载，开始加载语音
+        debugPrint('开始生成语音');
         ttsAudioUrl = await _audioTextHandleUtils.readText(message);
         message.ttsAudioUrl = ttsAudioUrl;
 
         _stopTextToSpeech(message);
-        _showToast('成功生成语音，请再次点击播放');
+        _showToast('正在生成语音资源，请稍后再次点击播放');
 
         return;
       } else {
@@ -1525,12 +1524,11 @@ class _ChatPageState extends State<ChatPage> {
       // 播放文字转语音的语音
       debugPrint('正在播放语音：$ttsAudioUrl');
       // 设置语音资源
-      // await _audioPlayer.setSourceUrl(ttsAudioUrl);
-      final canPlay = await setAudioResourceWithRetry(ttsAudioUrl);
+      final canPlay = await setTextReadingResourceWithRetry(ttsAudioUrl);
       // 根据是否可以播放语音来采用不同的策略
       if (canPlay) {
         // 恢复语音播放
-        await _audioPlayer.resume();
+        await audioPlayer.resumeReading();
       } else {
         _stopTextToSpeech(message);
         _showErrorSnackBar('音频资源加载失败，请重试');
@@ -1542,13 +1540,17 @@ class _ChatPageState extends State<ChatPage> {
 
   // 文字语音暂停方法
   void _stopTextToSpeech(ChatMessageItem message) async {
+    debugPrint('停止文字转语音服务');
+    final audioPlayer = context.read<AudioPlayerProvider>();
     setState(() {
       _isTextReading = false;
-      _currentReadingTextId = null;
+      audioPlayer.isTextReading = false;
+      audioPlayer.currentReadingTextId = null;
     });
+
     try {
       // 暂停已播放的语音
-      await _audioPlayer.stop();
+      await audioPlayer.stop();
     } catch (e) {
       debugPrint('文字转语音暂停错误：$e');
     }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:tinystack/managers/audio_player_state_manager.dart';
+import 'package:tinystack/managers/audio_player_provider.dart';
 
 import 'pages/chat_pages/chat_list_page.dart';
 import 'pages/main_pages/main_page.dart';
@@ -31,7 +31,7 @@ void main() {
           create: (_) => ThemeProvider(),
         ),
         ChangeNotifierProvider(
-          create: (_) => AudioPlayerStateProvider(),
+          create: (_) => AudioPlayerProvider(),
         ),
       ],
       child: const Home(),
