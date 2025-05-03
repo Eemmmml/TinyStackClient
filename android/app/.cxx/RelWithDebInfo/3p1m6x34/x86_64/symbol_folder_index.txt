@@ -1,0 +1,1 @@
+/Users/eemmmml/Documents/development/android/tinystack/build/app/intermediates/cxx/RelWithDebInfo/3p1m6x34/obj/x86_64

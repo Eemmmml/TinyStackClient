@@ -1,0 +1,2 @@
+/Users/eemmmml/Documents/development/android/tinystack/android/app/.cxx/RelWithDebInfo/3p1m6x34/armeabi-v7a/CMakeFiles/edit_cache.dir
+/Users/eemmmml/Documents/development/android/tinystack/android/app/.cxx/RelWithDebInfo/3p1m6x34/armeabi-v7a/CMakeFiles/rebuild_cache.dir
