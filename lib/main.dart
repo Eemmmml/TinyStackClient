@@ -1,14 +1,17 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
-import 'package:tinystack/managers/audio_player_provider.dart';
+import 'package:tinystack/provider/audio_player_provider.dart';
+import 'package:tinystack/provider/auth_state_provider.dart';
 
 import 'pages/chat_pages/chat_list_page.dart';
+import 'pages/init_pages/login_page.dart';
+import 'pages/init_pages/splash_page.dart';
 import 'pages/main_pages/main_page.dart';
 import 'pages/user_pages/profile_page.dart';
 import 'provider/theme_provider.dart';
+import 'configs/router_config.dart';
 
 void main() {
   // debugPaintSizeEnabled = true;
@@ -34,6 +37,9 @@ void main() {
         ChangeNotifierProvider(
           create: (_) => AudioPlayerProvider(),
         ),
+        ChangeNotifierProvider(
+          create: (_) => AuthStateProvider(),
+        ),
       ],
       child: const Home(),
     ),
@@ -46,7 +52,8 @@ class Home extends StatelessWidget {
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
+      routerConfig: router,
       title: 'TinyStack',
       theme: ThemeData(
           splashColor: Colors.transparent,
@@ -58,7 +65,8 @@ class Home extends StatelessWidget {
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8.0)))),
       darkTheme: ThemeData.dark(),
-      home: HomePage(title: 'Tiny Stack'),
+      // home: HomePage(title: 'Tiny Stack'),
+      // home: SplashPage(),
       themeMode: context.watch<ThemeProvider>().themeMode,
       // home: LoginPage(),
       debugShowCheckedModeBanner: false,
@@ -68,6 +76,10 @@ class Home extends StatelessWidget {
         GlobalCupertinoLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
       ],
+      // routes: {
+      //   '/login': (context) => LoginPage(),
+      //   '/home': (context) => HomePage(title: 'TinyStack'),
+      // },
     );
   }
 }

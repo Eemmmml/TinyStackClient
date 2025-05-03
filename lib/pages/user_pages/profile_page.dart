@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../entity/user_basic_info.dart';
 import '../../provider/theme_provider.dart';
@@ -60,6 +62,8 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildUserinfoSection(),
             _buildStatsSection(),
             _buildFunctionListSection(),
+            const SizedBox(height: 20),
+            _buildLogoutButton(),
           ],
         ),
       ),
@@ -173,6 +177,58 @@ class _ProfilePageState extends State<ProfilePage> {
       separatorBuilder: (context, index) => Divider(
         height: 1,
         color: Colors.grey[200],
+      ),
+    );
+  }
+
+  Widget _buildLogoutButton() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.redAccent,
+            foregroundColor: Colors.white,
+            minimumSize: Size(double.infinity, 50),
+          ),
+          onPressed: () async {
+            // 登出确认对话框
+            bool confirm = await showDialog(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('确认退出'),
+                content: const Text('您确定要退出吗 ？'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    child: const Text('取消'),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    child: const Text('确定'),
+                  ),
+                ],
+              ),
+            );
+
+            if (confirm) {
+              // 执行登出操作
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.setBool('isLoggedIn', false);
+
+              // 跳转到登陆页
+              if (mounted) {
+                context.go('/login');
+              }
+            }
+          },
+          child: const Text(
+            '退出登录',
+            style: TextStyle(
+              fontSize: 18,
+            ),
+          ),
+        ),
       ),
     );
   }

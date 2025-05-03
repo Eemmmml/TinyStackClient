@@ -4,7 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:tinystack/entity/chat_message_item.dart';
-import 'package:tinystack/managers/audio_player_provider.dart';
+import 'package:tinystack/provider/audio_player_provider.dart';
 
 class AudioMessageBubble extends StatefulWidget {
   final ChatMessageItem message;

@@ -20,7 +20,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../entity/chat_item.dart';
 import '../../entity/chat_message_item.dart';
-import '../../managers/audio_player_provider.dart';
+import '../../provider/audio_player_provider.dart';
 import '../../utils/audio_text_handle_utils.dart';
 import '../../utils/cloud_upload_utils.dart';
 import 'audio_message_bubble.dart';
