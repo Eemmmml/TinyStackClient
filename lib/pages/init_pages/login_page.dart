@@ -2,8 +2,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tinystack/pojo/user_login_pojo.dart';
+import 'package:tinystack/provider/auth_state_provider.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -31,6 +33,9 @@ class _LoginPageState extends State<LoginPage> {
 
   // TODO: 完善登录逻辑
   Future<void> _login() async {
+    setState(() {
+      _isLoading = !_isLoading;
+    });
     // 调用服务端 API 进行用户登录
     final username = _usernameController.text;
     final password = _passwordController.text;
@@ -50,23 +55,31 @@ class _LoginPageState extends State<LoginPage> {
       final responseData = UserLoginPojo.fromJson(response.data);
 
       final prefs = await SharedPreferences.getInstance();
-      if (responseData.data.isNotEmpty) {
+      final bool result;
+      if (responseData.data != null && responseData.data!.isNotEmpty) {
         await prefs.setBool('isLoggedIn', true);
         logger.d('用户登陆成功');
+        result = true;
       } else {
         await prefs.setBool('isLoggedIn', false);
         logger.d('用户登录失败，用户名或密码错误');
+        result = false;
         _showErrorSnackBar('用户名或密码错误');
+      }
+
+      if (mounted && result) {
+        final authProvider =
+            Provider.of<AuthStateProvider>(context, listen: false);
+        authProvider.login();
+        // Navigator.pushReplacementNamed(context, '/home');
+        authProvider.setRedirectPath('/home');
+        logger.d('跳转页面到应用首页');
+        context.go('/home');
       }
 
       setState(() {
         _isLoading = !_isLoading;
       });
-
-      if (mounted) {
-        // Navigator.pushReplacementNamed(context, '/home');
-        context.go('/home');
-      }
     } else {
       logger.d('用户登录请求失败');
 
@@ -93,15 +106,6 @@ class _LoginPageState extends State<LoginPage> {
                     image: AssetImage(
                         'assets/login_background/login_background_3.jpg'),
                     fit: BoxFit.cover)),
-          ),
-
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () {
-                FocusScope.of(context).unfocus();
-              },
-              behavior: HitTestBehavior.translucent,
-            ),
           ),
 
           // 内容区域增加滚动
@@ -222,12 +226,15 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Widget _buildHelperLinks() {
+    final authProvider = Provider.of<AuthStateProvider>(context, listen: false);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         TextButton(
           onPressed: () {
             // TODO: 跳转注册页面
+            authProvider.setRedirectPath('/signup');
+            context.go('/signup');
           },
           child: const Text('立即注册'),
         ),

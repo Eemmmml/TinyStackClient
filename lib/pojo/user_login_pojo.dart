@@ -6,7 +6,7 @@ part 'user_login_pojo.g.dart';
 class UserLoginPojo {
   final int code;
   final String msg;
-  final String data;
+  final String? data;
 
   UserLoginPojo({required this.code, required this.msg, required this.data});
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tinystack/provider/auth_state_provider.dart';
 
 import '../../entity/user_basic_info.dart';
 import '../../provider/theme_provider.dart';
@@ -218,6 +219,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
               // 跳转到登陆页
               if (mounted) {
+                final authProvider =
+                    Provider.of<AuthStateProvider>(context, listen: false);
+                authProvider.logout();
+                authProvider.setRedirectPath('/login');
                 context.go('/login');
               }
             }

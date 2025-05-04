@@ -15,7 +15,6 @@ class AuthStateProvider extends ChangeNotifier {
 
   final logger = Logger();
 
-
   Future<void> initialize() async {
     await _loadLonginStatus();
     _initialized = true;

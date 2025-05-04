@@ -10,7 +10,7 @@ UserLoginPojo _$UserLoginPojoFromJson(Map<String, dynamic> json) =>
     UserLoginPojo(
       code: (json['code'] as num).toInt(),
       msg: json['msg'] as String,
-      data: json['data'] as String,
+      data: json['data'] as String?,
     );
 
 Map<String, dynamic> _$UserLoginPojoToJson(UserLoginPojo instance) =>
