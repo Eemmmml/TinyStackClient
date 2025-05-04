@@ -8,6 +8,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:tinystack/configs/tencent_cos_config.dart';
 import 'package:tinystack/entity/chat_message_item.dart';
 import 'package:tts_plugin/tts_plugin.dart';
 
@@ -30,9 +31,11 @@ class AudioTextHandleUtils {
 
   final int _appId = 1356865752;
 
-  final _secretId = 'AKIDIVZQ2PXR5UhmhRyINGvOdcPyINDoAIAQ';
+  // final _secretId = 'AKIDIVZQ2PXR5UhmhRyINGvOdcPyINDoAIAQ';
+  final _secretId = TencentCosConfig.secretId;
 
-  final _secretKey = '70f5HI6lOo0xFOJzRjrnUzHNK7jDj9OQ';
+  // final _secretKey = '70f5HI6lOo0xFOJzRjrnUzHNK7jDj9OQ';
+  final _secretKey = TencentCosConfig.secretKey;
 
   // // 音频处理模型类型
   // final _engine_type = [
@@ -209,9 +212,11 @@ class AudioTextHandleUtils {
   // 文本阅读器
   var _textReader = AudioPlayer();
 
-  final String _bucketName = 'tinystack-tts-store-1356865752';
+  // final String _bucketName = 'tinystack-tts-store-1356865752';
+  final String _bucketName = TencentCosConfig.ttsBucket;
 
-  final String _region = 'ap-beijing';
+  // final String _region = 'ap-beijing';
+  final String _region = TencentCosConfig.region;
 
   // 流订阅
   StreamSubscription<TTSData>? _sub;

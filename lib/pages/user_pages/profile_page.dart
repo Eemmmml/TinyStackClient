@@ -149,12 +149,15 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver{
           ),
           IconButton(
             icon: const Icon(Icons.face),
-            onPressed: () {
+            onPressed: () async {
               // TODO: 实现跳转个人信息编辑页面
-              Navigator.push(
+              final result = await Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => const ProfileEditPage()));
+                      builder: (context) => ProfileEditPage(userInfo: _userInfo!)));
+              if (result && mounted) {
+                _loadUserInfo();
+              }
             },
           ),
         ],
