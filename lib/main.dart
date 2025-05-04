@@ -13,6 +13,8 @@ import 'pages/user_pages/profile_page.dart';
 import 'provider/theme_provider.dart';
 import 'configs/router_config.dart';
 
+
+
 void main() {
   // debugPaintSizeEnabled = true;
   // debugPaintLayerBordersEnabled = true;
@@ -21,6 +23,7 @@ void main() {
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   SystemChrome.setPreferredOrientations(
       [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
+  // 定义路由监听器
   // runApp(const Home());
   // runApp(
   //   ChangeNotifierProvider(
@@ -99,6 +102,20 @@ class _HomePageState extends State<HomePage> {
   // TODO: 添加各个页面的实例
   final List<Widget> _pages = [MainPage(), ChatListPage(), ProfilePage()];
 
+  late PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -106,15 +123,30 @@ class _HomePageState extends State<HomePage> {
       //   backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       //   title: Text(widget.title),
       // ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      // body: IndexedStack(
+      //   index: _currentIndex,
+      //   children: _pages,
+      // ),
+      body: PageView(
+        physics: NeverScrollableScrollPhysics(),
+        controller: _pageController,
+        onPageChanged: (index) => setState(() {
+          _currentIndex = index;
+        }),
+        children: [
+          MainPage(key: _pageKeys[0]),
+          ChatListPage(key: _pageKeys[1]),
+          ProfilePage(key: _pageKeys[2]),
+        ],
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() {
-          _currentIndex = index;
-        }),
+        onTap: (index) {
+          setState(() {
+            _pageController.jumpToPage(index);
+            _currentIndex = index;
+          });
+        },
         items: [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: '主页'),
           BottomNavigationBarItem(icon: Icon(Icons.chat), label: '社区'),
@@ -124,5 +156,25 @@ class _HomePageState extends State<HomePage> {
         unselectedItemColor: Colors.grey,
       ),
     );
+  }
+
+  // 为每个页面创建唯一的 GlobalKey
+  final List<GlobalKey<State<StatefulWidget>>> _pageKeys = [
+    GlobalKey(),
+    GlobalKey(),
+    GlobalKey(),
+  ];
+
+  Widget _buildCurrentPage() {
+    switch (_currentIndex) {
+      case 0:
+        return MainPage(key: _pageKeys[0]);
+      case 1:
+        return ChatListPage(key: _pageKeys[1]);
+      case 2:
+        return ProfilePage(key: _pageKeys[2]);
+      default:
+        return Container();
+    }
   }
 }

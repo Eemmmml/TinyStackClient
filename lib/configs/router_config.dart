@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:tinystack/main.dart';
 import 'package:tinystack/pages/init_pages/login_page.dart';
 import 'package:tinystack/pages/user_pages/profile_page.dart';
-import 'package:tinystack/pages/user_pages/user_register_page.dart';
+import 'package:tinystack/pages/init_pages/user_register_page.dart';
 
 import '../pages/init_pages/splash_page.dart';
 import '../provider/auth_state_provider.dart';
@@ -54,11 +54,12 @@ final router = GoRouter(
             key: state.pageKey,
             child: ProfilePage(),
           );
-        }),
+        },
+        ),
   ],
   redirect: (BuildContext context, GoRouterState state) {
     final auth = Provider.of<AuthStateProvider>(context, listen: false);
-    final isLoggedIn = auth.isLoggedIn;
+    final bool isLoggedIn = auth.isLoggedInID >= 0;
     final isLoggingIn = state.path == '/login';
     // 避免在初始化完成前处理重定向
     if (!auth.initialized) return null;

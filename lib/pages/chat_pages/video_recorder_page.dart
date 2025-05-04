@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_thumbnail/video_thumbnail.dart' as video_thumbnail;
 
-import '../../utils/time_format_utils.dart';
+import '../../utils/data_format_utils.dart';
 
 class VideoRecorderPage extends StatefulWidget {
   const VideoRecorderPage({super.key});
@@ -206,7 +206,7 @@ class _VideoRecorderPageState extends State<VideoRecorderPage>
         children: [
           if (_isRecording)
             Text(
-              TimeFormatUtils.formatDuration(_recordDuration),
+              DataFormatUtils.formatDuration(_recordDuration),
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 24,

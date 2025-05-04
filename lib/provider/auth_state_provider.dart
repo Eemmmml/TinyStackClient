@@ -3,11 +3,11 @@ import 'package:logger/logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthStateProvider extends ChangeNotifier {
-  bool _isLoggedIn = false;
+  int _isLoggedInID = -1;
   String? _redirectPath;
   bool _initialized = false;
 
-  bool get isLoggedIn => _isLoggedIn;
+  int get isLoggedInID => _isLoggedInID;
 
   String? get redirectPath => _redirectPath;
 
@@ -24,17 +24,17 @@ class AuthStateProvider extends ChangeNotifier {
   // 加载登陆状态
   Future<void> _loadLonginStatus() async {
     final prefs = await SharedPreferences.getInstance();
-    _isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
-    logger.d('Loaded Login Status: $_isLoggedIn');
+    _isLoggedInID = prefs.getInt('isLoggedInID') ?? -1;
+    logger.d('Loaded Login Status: $_isLoggedInID');
     // notifyListeners();
   }
 
   // 登陆
-  Future<void> login() async {
+  Future<void> login(int userID) async {
     // TODO: 与服务器交互，进一步完善登陆逻辑
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('isLoggedIn', true);
-    _isLoggedIn = true;
+    await prefs.setInt('isLoggedInID', userID);
+    _isLoggedInID = userID;
     notifyListeners();
   }
 
@@ -42,7 +42,7 @@ class AuthStateProvider extends ChangeNotifier {
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('isLoggedIn');
-    _isLoggedIn = false;
+    _isLoggedInID = -1;
     notifyListeners();
   }
 

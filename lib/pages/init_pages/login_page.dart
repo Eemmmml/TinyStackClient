@@ -45,7 +45,7 @@ class _LoginPageState extends State<LoginPage> {
       'password': password,
     };
 
-    final response = await dio.get('http://10.198.174.248:8080/user/signin',
+    final response = await dio.get('http://10.198.190.235:8080/user/signin',
         queryParameters: queryParams);
 
     if (response.statusCode == 200) {
@@ -56,13 +56,17 @@ class _LoginPageState extends State<LoginPage> {
 
       final prefs = await SharedPreferences.getInstance();
       final bool result;
-      if (responseData.data != null && responseData.data!.isNotEmpty) {
-        await prefs.setBool('isLoggedIn', true);
-        logger.d('用户登陆成功');
+      final int userID;
+      if (responseData.data != null && responseData.data!.token.isNotEmpty) {
+        // TODO: 获取用户 ID
+        userID = responseData.data!.userID;
+        await prefs.setInt('isLoggedInID', userID);
+        logger.d('用户登陆成功, 用户 ID: $userID');
         result = true;
       } else {
-        await prefs.setBool('isLoggedIn', false);
+        await prefs.setInt('isLoggedInID', -1);
         logger.d('用户登录失败，用户名或密码错误');
+        userID = -1;
         result = false;
         _showErrorSnackBar('用户名或密码错误');
       }
@@ -70,7 +74,7 @@ class _LoginPageState extends State<LoginPage> {
       if (mounted && result) {
         final authProvider =
             Provider.of<AuthStateProvider>(context, listen: false);
-        authProvider.login();
+        authProvider.login(userID);
         // Navigator.pushReplacementNamed(context, '/home');
         authProvider.setRedirectPath('/home');
         logger.d('跳转页面到应用首页');

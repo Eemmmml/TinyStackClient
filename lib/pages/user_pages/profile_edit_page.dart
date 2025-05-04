@@ -86,11 +86,12 @@ class _ProfileEditPageState extends State<ProfileEditPage> {
         children: [
           CircleAvatar(
             radius: 64,
-            backgroundImage: _avatarUrl.isNotEmpty
-                ? NetworkImage(_avatarUrl)
+            backgroundImage: myUserBasicInfo.avatarImageUrl.isNotEmpty
+                ? NetworkImage(myUserBasicInfo.avatarImageUrl)
                 : const AssetImage(defaultAvatarUrl) as ImageProvider,
-            child:
-                _avatarUrl.isEmpty ? const Icon(Icons.person, size: 64) : null,
+            child: myUserBasicInfo.avatarImageUrl.isEmpty
+                ? const Icon(Icons.person, size: 64)
+                : null,
           ),
           Container(
             padding: const EdgeInsets.all(8),

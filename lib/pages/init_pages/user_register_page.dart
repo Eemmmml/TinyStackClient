@@ -155,15 +155,19 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
 
       // 处理 Server 端的用户注册逻辑
       final response =
-          await dio.post('http://10.198.174.248:8080/user/signup', data: json);
+          await dio.post('http://10.198.190.235:8080/user/signup', data: json);
       final responseData = UserSignUpPojo.fromJson(response.data);
 
       final prefs = await SharedPreferences.getInstance();
+      final int userID;
       if (responseData.data > 0) {
-        await prefs.setBool('isLoggedIn', true);
+        // TODO: 获取用户 ID
+        userID = 0;
+        await prefs.setInt('isLoggedInID', userID);
         logger.d('用户注册并登陆成功');
       } else {
-        await prefs.setBool('isLoggedIn', false);
+        userID = -1;
+        await prefs.setInt('isLoggedInID', userID);
         logger.d('用户注册失败：${responseData.msg}');
         _showErrorSnackBar('用户注册失败：${responseData.msg}');
       }
@@ -172,7 +176,7 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
       if (mounted) {
         final authProvider =
             Provider.of<AuthStateProvider>(context, listen: false);
-        authProvider.login();
+        authProvider.login(userID);
         authProvider.setRedirectPath('/home');
         context.go('/home');
       }

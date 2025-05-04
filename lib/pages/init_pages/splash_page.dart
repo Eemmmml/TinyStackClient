@@ -26,7 +26,7 @@ class _SplashPageState extends State<SplashPage> {
     await auth.initialize();
 
     if (mounted) {
-      context.go(auth.isLoggedIn ? '/home' : '/login');
+      context.go(auth.isLoggedInID >= 0 ? '/home' : '/login');
     }
   }
 
