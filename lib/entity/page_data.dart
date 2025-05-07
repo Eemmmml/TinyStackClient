@@ -1,7 +1,7 @@
-import 'package:tinystack/entity/item_content.dart';
+import 'package:tinystack/entity/content_preview_item.dart';
 
 class PageData {
-  final List<ContentItem> items;
+  final List<ContentPreviewItem> items;
   final bool hasBanner;
 
   PageData({required this.items, required this.hasBanner});

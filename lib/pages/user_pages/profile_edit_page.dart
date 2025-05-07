@@ -10,8 +10,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:tinystack/configs/dio_config.dart';
 import 'package:tinystack/configs/tencent_cos_config.dart';
-import 'package:tinystack/pojo/user_profile_update_pojo.dart';
-import 'package:tinystack/pojo/user_profile_update_response_pojo.dart';
+import 'package:tinystack/pojo/user_pojo/user_profile_update_pojo.dart';
+import 'package:tinystack/pojo/user_pojo/user_profile_update_response_pojo.dart';
 import 'package:tinystack/provider/auth_state_provider.dart';
 import 'package:tinystack/utils/cloud_upload_utils.dart';
 

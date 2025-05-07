@@ -38,6 +38,12 @@ class _SearchPageState extends State<SearchPage> {
   final _suggestionNum = 6;
 
   @override
+  void initState() {
+    super.initState();
+    _controller.clear();
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -72,7 +78,21 @@ class _SearchPageState extends State<SearchPage> {
           }),
         ),
       ),
-      body: _buildBody(),
+      // body: _buildBody(),
+      body: GestureDetector(
+        onTap: () {
+          FocusScope.of(context).unfocus();
+        },
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (ScrollNotification notification) {
+            if (notification is ScrollStartNotification) {
+              FocusScope.of(context).unfocus();
+            }
+            return false;
+          },
+          child: _buildBody(),
+        ),
+      ),
     );
   }
 
@@ -151,7 +171,7 @@ class _SearchPageState extends State<SearchPage> {
                   // TODO: 填充建议内容并搜索
                   Navigator.of(context).push(MaterialPageRoute(
                       builder: (context) =>
-                          SearchResultsPage(initialKeyword: '西瓜')));
+                          SearchResultsPage(initialKeyword: _controller.text)));
                 },
               ))
           .toList(),

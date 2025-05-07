@@ -7,6 +7,7 @@ class User {
   final String bio;
   bool isFollowing;
 
+  // 用 UserSearchResult 来替换
   User({
     required this.id,
     required this.username,

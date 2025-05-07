@@ -4,7 +4,8 @@ import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tinystack/pojo/user_login_pojo.dart';
+import 'package:tinystack/configs/dio_config.dart';
+import 'package:tinystack/pojo/user_pojo/user_login_pojo.dart';
 import 'package:tinystack/provider/auth_state_provider.dart';
 
 class LoginPage extends StatefulWidget {
@@ -45,8 +46,9 @@ class _LoginPageState extends State<LoginPage> {
       'password': password,
     };
 
-    final response = await dio.get('http://10.198.190.235:8080/user/signin',
-        queryParameters: queryParams);
+    final response = await dio.get('${DioConfig.severUrl}/user/signin');
+    // final response = await dio.get('http://10.198.190.235:8080/user/signin',
+    //     queryParameters: queryParams);
 
     if (response.statusCode == 200) {
       logger.d('用户登录请求成功');

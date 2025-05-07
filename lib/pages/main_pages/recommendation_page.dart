@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import '../../entity/item_content.dart';
+import '../../entity/content_preview_item.dart';
 import '../../entity/page_data.dart';
 import '../card/content_card.dart';
 import '../content_pages/video_detail_page.dart';
@@ -61,7 +62,8 @@ class _RecommendationPageState extends State<RecommendationPage> {
     super.initState();
     // _showBannerLayout = _random.nextBool();
     _scrollController.addListener(_scrollListener);
-    _loadData(direction: LoadDirection.up);
+    // _loadData(direction: LoadDirection.up);
+    _loadContentPreviewData(direction: LoadDirection.up);
   }
 
   @override
@@ -126,14 +128,16 @@ class _RecommendationPageState extends State<RecommendationPage> {
         currentPosition >= position.maxScrollExtent - 50 &&
         !_isBottomLoading &&
         _hasMore) {
-      _loadData(direction: LoadDirection.down);
+      // _loadData(direction: LoadDirection.down);
+      _loadContentPreviewData(direction: LoadDirection.down);
     }
 
     // 下拉判断
     if (!_isScrollingDown &&
         position.pixels <= position.minScrollExtent + 100 &&
         !_isTopLoading) {
-      _loadData(direction: LoadDirection.up);
+      // _loadData(direction: LoadDirection.up);
+      _loadContentPreviewData(direction: LoadDirection.up);
     }
   }
 
@@ -146,7 +150,8 @@ class _RecommendationPageState extends State<RecommendationPage> {
       // _showBannerLayout = _random.nextBool();
     });
 
-    await _loadData(direction: LoadDirection.up);
+    // await _loadData(direction: LoadDirection.up);
+    await _loadContentPreviewData(direction: LoadDirection.up);
   }
 
   @override
@@ -169,7 +174,8 @@ class _RecommendationPageState extends State<RecommendationPage> {
       physics: const ClampingScrollPhysics(),
       slivers: [
         ..._pages.expand((page) => [
-              if (page.hasBanner) SliverToBoxAdapter(child: _buildBanner()),
+              if (page.hasBanner)
+                SliverToBoxAdapter(child: _buildBanner(page.items)),
               _buildContentSliverGrid(page),
             ]),
         SliverToBoxAdapter(child: _buildBottomLoader()),
@@ -207,11 +213,9 @@ class _RecommendationPageState extends State<RecommendationPage> {
   }
 
   // 构建 Banner 视图
-  Widget _buildBanner() {
-    return RandomBanner();
+  Widget _buildBanner(List<ContentPreviewItem> contents) {
+    return RandomBanner(contents: contents);
   }
-
-
 
   // 构建上拉加载动画
   Widget _buildBottomLoader() {
@@ -232,10 +236,57 @@ class _RecommendationPageState extends State<RecommendationPage> {
       ),
     );
   }
+
+  Future<void> _loadContentPreviewData(
+      {required LoadDirection direction}) async {
+    if ((direction == LoadDirection.down && _isBottomLoading) ||
+        (direction == LoadDirection.up && _isTopLoading)) {
+      return;
+    }
+
+    setState(() {
+      if (direction == LoadDirection.down) {
+        _isBottomLoading = true;
+        _currentPage++;
+      } else {
+        _isTopLoading = true;
+        _currentPage = 1;
+      }
+    });
+
+    try {
+      // final newItems = await MockData.fetchData(_currentPage, _pageSize);
+      final newItems =
+          await ContentPreviewDataLoader.fetchData(_currentPage, _pageSize);
+      // 为每个页面生成 Banner 标志
+      final newPage = PageData(items: newItems, hasBanner: _random.nextBool());
+
+      setState(() {
+        if (direction == LoadDirection.down) {
+          _pages.add(newPage);
+          _currentPageNumber++;
+        } else {
+          _pages = [newPage];
+          _currentPageNumber = 2;
+        }
+        _hasMore = newItems.length == _pageSize;
+      });
+    } finally {
+      setState(() {
+        if (direction == LoadDirection.down) {
+          _isBottomLoading = false;
+        } else {
+          _isTopLoading = false;
+        }
+      });
+    }
+  }
 }
 
 class RandomBanner extends StatefulWidget {
-  const RandomBanner({super.key});
+  List<ContentPreviewItem> contents;
+
+  RandomBanner({super.key, required this.contents});
 
   @override
   State<RandomBanner> createState() => _RandomBannerState();
@@ -253,8 +304,6 @@ class _RandomBannerState extends State<RandomBanner> {
     super.initState();
     _startAutoPlay();
   }
-
-
 
   void _startAutoPlay() {
     _timer = Timer.periodic(Duration(seconds: 3), (timer) {
@@ -280,8 +329,6 @@ class _RandomBannerState extends State<RandomBanner> {
     super.dispose();
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -294,7 +341,8 @@ class _RandomBannerState extends State<RandomBanner> {
             onPageChanged: _onPageChanged,
             itemBuilder: (context, index) {
               final actualIndex = index % _bannerCount;
-              return _buildBannerItem('assets/user_info/user_avatar1.jpg');
+              // return _buildBannerItem('assets/user_info/user_avatar1.jpg');
+              return _buildBannerItem(widget.contents[actualIndex].imageUrl);
             },
           ),
         ),
@@ -337,14 +385,40 @@ class _RandomBannerState extends State<RandomBanner> {
       },
       borderRadius: BorderRadius.circular(8.0),
       child: Container(
-        margin: EdgeInsets.all(8),
+        margin: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(8),
-          image: DecorationImage(
-            // TODO: 将图片获取改为从网络进行获取
-            // image: NetworkImage(imageUrl),
-            image: AssetImage(imageUrl),
+          // image: DecorationImage(
+          //   // TODO: 将图片获取改为从网络进行获取
+          //   // image: NetworkImage(imageUrl),
+          //   image: AssetImage(imageUrl),
+          //   fit: BoxFit.cover,
+          // ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: CachedNetworkImage(
+            imageUrl: imageUrl,
             fit: BoxFit.cover,
+            width: double.infinity,
+            placeholder: (context, url) => Container(
+              color: Colors.grey[200],
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                ),
+              ),
+            ),
+            errorWidget: (context, url, error) => Container(
+              color: Colors.grey[200],
+              child: const Icon(Icons.broken_image, color: Colors.grey),
+            ),
+            imageBuilder: (context, imageProvider) => Container(
+              decoration: BoxDecoration(
+                image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
+              ),
+            ),
           ),
         ),
       ),

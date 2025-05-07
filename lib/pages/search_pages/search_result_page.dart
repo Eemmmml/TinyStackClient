@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../entity/search_result_item.dart';
 import 'article_search_results_page.dart';
 import 'comprehensive_search_results_page.dart';
 import 'user_search_results_page.dart';
@@ -26,6 +25,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
 
   @override
   void dispose() {
+    _searchController.clear();
     _searchController.dispose();
     super.dispose();
   }
@@ -42,6 +42,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
             icon: Icon(Icons.arrow_back_ios_new_rounded),
             onPressed: () {
               // TODO: 实现按钮点击逻辑
+              _searchController.clear();
               Navigator.of(context).pop();
             },
           ),
@@ -70,6 +71,7 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
                               onPressed: () {
                                 _searchController.clear();
                                 // TODO: 添加清除搜索框内容后的业务逻辑
+                                Navigator.pop(context, true);
                               },
                             )
                           : null,
@@ -106,18 +108,32 @@ class _SearchResultsPageState extends State<SearchResultsPage> {
             indicatorColor: Colors.pinkAccent,
           ),
         ),
-        body: TabBarView(
-          children: [
-            ComprehensiveSearchResultsPage(searchResults: mockSearchResults),
-            UserSearchResultsPage(),
-            ArticleSearchResultsPage(),
-            Container(
-              color: Colors.grey[200],
-              child: Center(
-                child: Text('内容'),
-              ),
+        body: GestureDetector(
+          onTap: () {
+            FocusScope.of(context).unfocus();
+          },
+          behavior: HitTestBehavior.opaque,
+          child: NotificationListener<ScrollNotification>(
+            onNotification: (ScrollNotification notification) {
+              if (notification is ScrollStartNotification) {
+                FocusScope.of(context).unfocus();
+              }
+              return false;
+            },
+            child: TabBarView(
+              children: [
+                ComprehensiveSearchResultsPage(keyword: _searchController.text),
+                UserSearchResultsPage(),
+                ArticleSearchResultsPage(),
+                Container(
+                  color: Colors.grey[200],
+                  child: Center(
+                    child: Text('内容'),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

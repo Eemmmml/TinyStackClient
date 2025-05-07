@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tinystack/pojo/user_profile_info_pojo.dart';
+import 'package:tinystack/pojo/user_pojo/user_profile_info_pojo.dart';
 import 'package:logger/logger.dart';
 import 'package:tinystack/provider/auth_state_provider.dart';
 import 'package:tinystack/utils/data_format_utils.dart';

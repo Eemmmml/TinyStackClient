@@ -26,7 +26,7 @@ class _ArticleSearchResultsPageState extends State<ArticleSearchResultsPage> {
       ArticleSearchResult(
         coverUrl: 'https://picsum.photos/200/200?random=8',
         avatarUrl: 'https://picsum.photos/200/200?random=1',
-        username: '科技前沿',
+        uploaderName: '科技前沿',
         content: '人工智能在移动开发中的应用：最新技术趋势分析...',
         likeCount: 8911,
         commentCount: 67,
@@ -36,7 +36,7 @@ class _ArticleSearchResultsPageState extends State<ArticleSearchResultsPage> {
       ArticleSearchResult(
         coverUrl: 'https://picsum.photos/200/200?random=2',
         avatarUrl: 'https://picsum.photos/200/200?random=1',
-        username: '设计达人',
+        uploaderName: '设计达人',
         content: '深度解析Material 3设计规范：如何打造现代化的应用界面...',
         likeCount: 2345,
         commentCount: 156,
@@ -211,7 +211,7 @@ class _ArticleSearchResultsPageState extends State<ArticleSearchResultsPage> {
                               'assets/user_info/user_avatar.jpg'),
                     ),
                     const SizedBox(width: 8),
-                    Text(data.username),
+                    Text(data.uploaderName),
                   ],
                 ),
                 const SizedBox(height: 8),

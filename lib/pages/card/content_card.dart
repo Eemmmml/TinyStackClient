@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class ContentCard extends StatelessWidget {
   final String title;
@@ -24,9 +25,24 @@ class ContentCard extends StatelessWidget {
             child: ClipRRect(
               borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
               // TODO: 改为从网络获取图片资源
-              // child: Image.network(imageUrl, fit: BoxFit.cover),
-              child: Image.asset(imageUrl,
-                  fit: BoxFit.cover, width: double.infinity),
+              // child: Image.network(imageUrl, fit: BoxFit.cover, width: double.infinity),
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                placeholder: (context, url) => Container(
+                  color: Colors.grey[200],
+                  child: const Center(
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.error),
+                ),
+              ),
+              // child: Image.asset(imageUrl,
+              //     fit: BoxFit.cover, width: double.infinity),
             ),
           ),
           Padding(

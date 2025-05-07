@@ -1,14 +1,22 @@
+import 'dart:math';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
+import 'package:dio/dio.dart';
 import 'package:intl/intl.dart';
+import 'package:tinystack/configs/dio_config.dart';
+import 'package:tinystack/pojo/search_result_pojo/sever_search_result_pojo.dart';
 
 import '../../entity/search_result_item.dart';
 
 class ComprehensiveSearchResultsPage extends StatefulWidget {
   // 混合类型搜索结果列表
-  final List<SearchResultItem>? searchResults;
+  final String keyword;
+  // final List<SearchResultItem>? initialResults;
 
   const ComprehensiveSearchResultsPage(
-      {super.key, required this.searchResults});
+      {super.key, required this.keyword});
 
   @override
   State<ComprehensiveSearchResultsPage> createState() =>
@@ -17,8 +25,32 @@ class ComprehensiveSearchResultsPage extends StatefulWidget {
 
 class _ComprehensiveSearchResultsPageState
     extends State<ComprehensiveSearchResultsPage> {
-  // 管理关注状态
-  late bool _isFollowing;
+  // 页面滚动控制器
+  late ScrollController _scrollController;
+
+  // 日志工具
+  final logger = Logger();
+
+  // 互联网请求工具
+  final dio = Dio();
+
+  // 加载状态
+  bool _isLoading = false;
+
+  // 是否有更多数据
+  bool _hasMore = true;
+
+  // 当前页面
+  int _currentPage = 1;
+
+  // 每个页面的搜索结果数
+  final int _itemsPerPage = 10;
+
+  // 搜索结果列表
+  List<SearchResultItem> _searchResults = [];
+
+  // // 管理关注状态
+  // late bool _isFollowing;
 
   // 下方图标按钮尺寸
   final double _iconButtonSize = 20;
@@ -26,14 +58,127 @@ class _ComprehensiveSearchResultsPageState
   @override
   void initState() {
     // TODO: 从后台初始化关注状态
-    _isFollowing = true;
+    // _isFollowing = true;
+    // _searchResults = _fetchData(page: 1, pageSize: _itemsPerPage, keyword: widget.keyword);
+    _loadNewData();
+    // _searchResults = widget.initialResults ?? [];
+    _scrollController = ScrollController();
+    _scrollController.addListener(_scrollListener);
     super.initState();
   }
 
-  // 处理关注状态切换
-  void _toggleFollow() {
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  // 滚动监听器
+  void _scrollListener() {
+    if (_scrollController.position.pixels == _scrollController.position.maxScrollExtent && !_isLoading && _hasMore) {
+      _loadMoreData();
+    }
+  }
+
+  // 加载新的的数据
+  Future<void> _loadNewData() async {
     setState(() {
-      _isFollowing = !_isFollowing;
+      _isLoading = true;
+    });
+    // TODO: 替换为实际的网络请求数据
+    // 模拟加载时的网络延迟
+    await Future.delayed(Duration(seconds: 2));
+
+    // final newData = await _mockFetchData(page: 1);
+    final newData = await _fetchData(page: 1, pageSize: _itemsPerPage, keyword: widget.keyword);
+
+    setState(() {
+      _searchResults = newData;
+      _currentPage = 1;
+      _hasMore = newData.length == _itemsPerPage;
+      _isLoading = false;
+    });
+  }
+
+  // 加载更多的数据
+  Future<void> _loadMoreData() async {
+    if (!_hasMore || _isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    // TODO: 替换为实际的网络请求数据
+    // 模拟加载时的网络延迟
+    await Future.delayed(Duration(seconds: 2));
+
+    // final newData = await _mockFetchData(page: _currentPage + 1);
+
+    final newData = await _fetchData(page: _currentPage + 1, pageSize: _itemsPerPage, keyword: widget.keyword);
+
+    setState(() {
+      _searchResults.addAll(newData);
+      _currentPage++;
+      _hasMore = newData.length == _itemsPerPage;
+      _isLoading = false;
+    });
+  }
+
+  Future<List<SearchResultItem>> _mockFetchData({required int page}) async {
+    // 模拟分页数据
+    final start = (page - 1) * _itemsPerPage;
+    final end = start + _itemsPerPage;
+
+    await Future.delayed(Duration(milliseconds: 500));
+
+    if (start >= mockSearchResults.length) return [];
+
+    return mockSearchResults.sublist(start, end.clamp(0, mockSearchResults.length));
+  }
+
+  Future<List<SearchResultItem>> _fetchData({required int page, required int pageSize, required String keyword}) async {
+    logger.d('开始获取搜索数据，搜索关键字: $keyword');
+    final response = await dio.get('${DioConfig.severUrl}/content/search', queryParameters: {"pageNum": page, "pageSize": pageSize, "keyword": keyword});
+    final List<SearchResultItem> newData = [];
+    if (response.statusCode == 200) {
+      logger.d('获取搜索数据请求成功, 开始解析数据');
+      final jsonData = ServerSearchResponsePojo.fromJson(response.data);
+      if (jsonData.code == 1) {
+        logger.d('成功获取搜索数据');
+        for (var data in jsonData.data) {
+          final tempData = ServerSearchResultPojo.fromJson(data);
+          switch (tempData.type) {
+            case 0:
+              newData.add(tempData.toRelatedSearchResult());
+              break;
+            case 1:
+              newData.add(tempData.toArticleSearchResult());
+              break;
+            case 2:
+              newData.add(tempData.toVideoSearchResult());
+              break;
+            case 3:
+              newData.add(tempData.toUserSearchResult());
+              break;
+            default:
+              logger.d('数据错误，请查看后台数据: type ${tempData.type}');
+              break;
+          }
+        }
+      } else {
+        logger.e('获取搜索数据失败');
+      }
+    } else {
+      logger.e('获取搜索数据请求失败');
+    }
+    return newData;
+  }
+
+  // 处理关注状态切换
+  void _toggleFollow(UserSearchResult data) {
+    setState(() {
+      // _isFollowing = !_isFollowing;
+      data.isFollowing = !data.isFollowing;
     });
     // TODO: 这里添加网络请求同步数据
   }
@@ -41,36 +186,71 @@ class _ComprehensiveSearchResultsPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        itemCount: widget.searchResults?.length ?? 0,
-        itemBuilder: (context, index) {
-          final item = widget.searchResults?[index];
-          if (item == null) return const SizedBox.shrink();
-          Widget card;
-          switch (item.type) {
-            case 'video':
-              card = _buildVideoCard(item as VideoSearchResult);
-              break;
-            case 'related':
-              card = _buildRelatedSearchCard(item as RelatedSearchResult);
-              break;
-            case 'article':
-              card = _buildArticleCard(item as ArticleSearchResult);
-              break;
-            case 'user':
-              card = _buildUserCard(item as UserSearchResult);
-              break;
-            default:
-              card = const SizedBox(height: 1);
-          }
-          return card;
-        },
-        separatorBuilder: (context, index) => Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Divider(
-            thickness: 0.8,
-            color: Colors.grey[300],
+      body: RefreshIndicator(
+        onRefresh: _loadNewData,
+        color: Colors.pinkAccent,
+        displacement: 40,
+        strokeWidth: 2.5,
+        edgeOffset: 20,
+        child:    ListView.separated(
+          controller: _scrollController,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            itemCount: _searchResults.length + (_hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index >= _searchResults.length) {
+                return _buildLoadingIndicator();
+              }
+
+              final item = _searchResults[index];
+              if (item == null) return const SizedBox.shrink();
+              Widget card;
+              switch (item.type) {
+                case SearchResultType.video:
+                  card = _buildVideoCard(item as VideoSearchResult);
+                  break;
+                case SearchResultType.related:
+                  card = _buildRelatedSearchCard(item as RelatedSearchResult);
+                  break;
+                case SearchResultType.article:
+                  card = _buildArticleCard(item as ArticleSearchResult);
+                  break;
+                case SearchResultType.user:
+                  card = _buildUserCard(item as UserSearchResult);
+                  break;
+                // default:
+                //   card = const SizedBox(height: 1);
+              }
+              return card;
+            },
+            separatorBuilder: (context, index) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Divider(
+                thickness: 0.8,
+                color: Colors.grey[300],
+              ),
+            ),
+          ),
+      ),
+    );
+  }
+
+  // 构建加载页面
+  Widget _buildLoadingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 20),
+      child: Center(
+        child: _hasMore ? const SizedBox(
+          width: 30,
+          height: 30,
+          child: CircularProgressIndicator(
+            strokeWidth: 2.5,
+            color: Colors.pinkAccent,
+          ),
+        ) : const Text(
+          '没有更多内容了',
+          style: TextStyle(
+            color: Colors.grey,
+            fontSize: 14,
           ),
         ),
       ),
@@ -83,7 +263,7 @@ class _ComprehensiveSearchResultsPageState
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       // TODO: 实现具体的点击逻辑
-      onTap: () => print('Click ex'),
+      onTap: () => debugPrint('Click ex'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
         child: Column(
@@ -102,7 +282,12 @@ class _ComprehensiveSearchResultsPageState
                         borderRadius: BorderRadius.circular(8),
                         // 封面占位颜色
                         image: DecorationImage(
-                            image: NetworkImage(data.coverUrl),
+                            // image: NetworkImage(data.coverUrl),
+                          image: CachedNetworkImageProvider(
+                            data.coverUrl,
+                            maxWidth: 150,
+                            maxHeight: 120,
+                          ),
                             fit: BoxFit.cover),
                       ),
                       // TODO: 从网络获取图片
@@ -159,7 +344,7 @@ class _ComprehensiveSearchResultsPageState
                               size: 14, color: Colors.grey[600]),
                           const SizedBox(width: 4),
                           Text(
-                            data.upName,
+                            data.uploaderName,
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 12,
@@ -197,6 +382,7 @@ class _ComprehensiveSearchResultsPageState
 
   // 搜索相关卡片
   Widget _buildRelatedSearchCard(RelatedSearchResult data) {
+    if (data.keywords.isEmpty) return const SizedBox.shrink();
     final keywords = data.keywords.take(8).toList();
 
     return Container(
@@ -267,15 +453,29 @@ class _ComprehensiveSearchResultsPageState
           ClipRRect(
             borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(8), bottomLeft: Radius.circular(8)),
-            child: Image.network(
-              data.coverUrl,
+            // child: Image.network(
+            //   data.coverUrl,
+            //   width: 100,
+            //   height: 100,
+            //   fit: BoxFit.cover,
+            //   errorBuilder: (_, __, ___) => Container(
+            //     width: 100,
+            //     height: 100,
+            //     color: Colors.grey,
+            //   ),
+            // ),
+            child: CachedNetworkImage(
               width: 100,
               height: 100,
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                width: 100,
-                height: 100,
+              imageUrl: data.coverUrl,
+              placeholder: (context, url) => Container(
+                color: Colors.grey[200],
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              ),
+              errorWidget: (context, url, error) => Container(
                 color: Colors.grey,
+                child: Icon(Icons.error),
               ),
             ),
           ),
@@ -288,13 +488,17 @@ class _ComprehensiveSearchResultsPageState
                   children: [
                     CircleAvatar(
                       radius: 12,
+                      // backgroundImage: data.avatarUrl.isNotEmpty
+                      //     ? NetworkImage(data.avatarUrl)
+                      //     : const AssetImage(
+                      //         'assets/user_info/user_avatar.jpg'),
                       backgroundImage: data.avatarUrl.isNotEmpty
-                          ? NetworkImage(data.avatarUrl)
+                          ? CachedNetworkImageProvider(data.avatarUrl)
                           : const AssetImage(
-                              'assets/user_info/user_avatar.jpg'),
+                          'assets/user_info/user_avatar.jpg'),
                     ),
                     const SizedBox(width: 8),
-                    Text(data.username),
+                    Text(data.uploaderName),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -343,7 +547,8 @@ class _ComprehensiveSearchResultsPageState
                     const SizedBox(height: 3),
                     CircleAvatar(
                       radius: 28,
-                      backgroundImage: NetworkImage(data.avatarUrl),
+                      // backgroundImage: NetworkImage(data.avatarUrl),
+                      backgroundImage: CachedNetworkImageProvider(data.avatarUrl),
                     ),
                   ],
                 ),
@@ -353,7 +558,7 @@ class _ComprehensiveSearchResultsPageState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        data.username,
+                        data.uploaderName,
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -380,16 +585,16 @@ class _ComprehensiveSearchResultsPageState
                     ElevatedButton(
                       onPressed: () {
                         // TODO: 实现按钮点击逻辑
-                        _toggleFollow();
+                        _toggleFollow(data);
                       },
                       style: ElevatedButton.styleFrom(
                         minimumSize: Size(80, 24),
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 4),
                         backgroundColor:
-                            _isFollowing ? Colors.grey : Colors.pinkAccent,
+                            data.isFollowing ? Colors.grey : Colors.pinkAccent,
                       ),
-                      child: _isFollowing
+                      child: data.isFollowing
                           ? Text('已关注',
                               style: TextStyle(
                                   fontSize: 16, color: Colors.grey[400]))
@@ -411,6 +616,9 @@ class _ComprehensiveSearchResultsPageState
                       icon: const Icon(Icons.more_vert),
                       onPressed: () {
                         // TODO: 实现按钮点击逻辑
+                        setState(() {
+                          data.isFollowing = !data.isFollowing;
+                        });
                       },
                     ),
                   ],
@@ -433,7 +641,7 @@ class _ComprehensiveSearchResultsPageState
             TextButton(
               onPressed: () {
                 // TODO: 实现按钮点击逻辑
-                _toggleFollow();
+                _toggleFollow(data);
               },
               child: Center(
                 child: Row(
@@ -462,8 +670,22 @@ class _ComprehensiveSearchResultsPageState
           children: [
             Stack(
               children: [
-                Image.network(post.coverUrl,
-                    width: 120, height: 90, fit: BoxFit.cover),
+                // Image.network(post.coverUrl,
+                //     width: 120, height: 90, fit: BoxFit.cover),
+                CachedNetworkImage(
+                  width: 120,
+                  height: 90,
+                  fit: BoxFit.cover,
+                  imageUrl: post.coverUrl,
+                  placeholder: (context, url) => Container(
+                    color: Colors.grey[200],
+                    child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey,
+                    child: Icon(Icons.broken_image),
+                  ),
+                ),
                 Positioned(
                   bottom: 0,
                   left: 0,

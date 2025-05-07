@@ -4,8 +4,9 @@ import 'package:go_router/go_router.dart';
 import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:tinystack/pojo/user_register_pojo.dart';
-import 'package:tinystack/pojo/user_sign_up_pojo.dart';
+import 'package:tinystack/configs/dio_config.dart';
+import 'package:tinystack/pojo/user_pojo/user_register_pojo.dart';
+import 'package:tinystack/pojo/user_pojo/user_sign_up_pojo.dart';
 import 'package:tinystack/provider/auth_state_provider.dart';
 
 class UserRegisterPage extends StatefulWidget {
@@ -155,7 +156,9 @@ class _UserRegisterPageState extends State<UserRegisterPage> {
 
       // 处理 Server 端的用户注册逻辑
       final response =
-          await dio.post('http://10.198.190.235:8080/user/signup', data: json);
+      await dio.post('${DioConfig.severUrl}/user/signup', data: json);
+      // final response =
+      //     await dio.post('http://10.198.190.235:8080/user/signup', data: json);
       final responseData = UserSignUpPojo.fromJson(response.data);
 
       final prefs = await SharedPreferences.getInstance();
