@@ -1,4 +1,3 @@
 class DioConfig {
-  static final String severUrl = 'http://10.198.120.6:8080';
-
+  static final String severUrl = 'http://10.198.248.225:8080';
 }

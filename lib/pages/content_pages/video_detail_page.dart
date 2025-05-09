@@ -1,24 +1,47 @@
 import 'dart:async';
 
 import 'package:chewie/chewie.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:logger/logger.dart';
+import 'package:provider/provider.dart';
+import 'package:tinystack/configs/dio_config.dart';
+import 'package:tinystack/pojo/content_pojo/content_get_video_detail_pojo.dart';
+import 'package:tinystack/pojo/content_pojo/video_detail_pojo.dart';
+import 'package:tinystack/provider/auth_state_provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'comment_page.dart';
 import 'video_info_page.dart';
 
+// TODO: 需要实现从后端获取视频资源路径，和视频播放如上次播放进度等基本数据
 class VideoDetailPage extends StatefulWidget {
-  const VideoDetailPage({super.key});
+  final int videoContentId;
+
+  // final int userId;
+
+  const VideoDetailPage({super.key, required this.videoContentId});
 
   @override
   State<VideoDetailPage> createState() => _VideoDetailPageState();
 }
 
 class _VideoDetailPageState extends State<VideoDetailPage> {
+  final logger = Logger();
+  final dio = Dio();
   late VideoPlayerController _videoPlayerController;
   late ChewieController _chewieController;
   static const double kScrollThreshold = 50; // 滑动阈值，可根据需要调整
+
+  // 加载状态管理变量
+  bool _isLoading = true;
+
+  // 视频数据实体
+  VideoDetailPojo? _videoDetail;
+
+  // 错误信息
+  String? _errorMessage;
 
   // 是否全屏
   bool _isFullScreen = false;
@@ -38,39 +61,174 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
   @override
   void initState() {
     super.initState();
-    _videoPlayerController =
-        VideoPlayerController.asset('assets/videos/test.mp4');
-    _chewieController = ChewieController(
-      videoPlayerController: _videoPlayerController,
-      aspectRatio: 16 / 9,
-      autoInitialize: true,
-      autoPlay: true,
-      looping: false,
-      // 隐藏默认控制栏
-      showControls: false,
-      materialProgressColors: ChewieProgressColors(
-        playedColor: Colors.red,
-        handleColor: Colors.white,
-        backgroundColor: Color.fromRGBO(211, 211, 211, 0.3),
-        bufferedColor: Color.fromRGBO(211, 211, 211, 0.1),
-      ),
-      placeholder: const Center(child: CircularProgressIndicator()),
-      fullScreenByDefault: false,
-      errorBuilder: (context, error) => const Center(child: Text('视频加载失败')),
-    );
-    _videoPlayerController.addListener(_handleVideoPlayerListener);
-
-    // 启动隐藏视频控制按钮计时器
-    _startHideControlsTimer();
-
-    // 为页面滚动控制器添加监听器
-    _scrollController.addListener(_handleScroll);
+    _initializeVideoPlayer();
+    // _loadVideoData();
   }
 
   void _handleVideoPlayerListener() {
     if (_videoPlayerController.value.isInitialized && mounted) {
       setState(() {});
     }
+  }
+
+  // 加载视频数据
+  Future<void> _loadVideoData() async {
+    try {
+      // 模拟获取到的视频数据 - 实际应从网络请求获取
+      // final mockData = VideoDetailPojo(
+      //   id: widget.videoContentId,
+      //   uploaderId: 1,
+      //   uploaderName: '测试用户',
+      //   uploaderAvatarUrl:
+      //       'https://tinystack-image-store-1356865752.cos.ap-beijing.myqcloud.com/tiny_stack_video_thumbnail_chat_user_123_1746204092903',
+      //   fans: 1000,
+      //   compositions: 50,
+      //   isFollowed: false,
+      //   title: '测试视频标题',
+      //   videoSource:
+      //       'https://tinystack-video-store-1356865752.cos.ap-beijing.myqcloud.com/tiny_stack_shot_video_chat_user_123_1746198664053',
+      //   viewCount: 5000,
+      //   tabs: ['测试', '视频'],
+      //   description: '这是一个测试视频描述',
+      //   uploadTime: DateTime.now(),
+      // );
+
+      final provider = Provider.of<AuthStateProvider>(context, listen: false);
+
+      final response = await dio
+          .get('${DioConfig.severUrl}/content/video', queryParameters: {
+        'userId': provider.isLoggedInID,
+        'videoId': widget.videoContentId,
+      });
+
+      final VideoDetailPojo? pojo;
+      if (response.statusCode == 200) {
+        logger.d('视频数据加载请求成功: ${response.data}');
+        final data = ContentGetVideoDetailPojo.fromJson(response.data);
+        if (data.code == 1) {
+          logger.d('获取视频数据成功, ${response.data}');
+          pojo = VideoDetailPojo.fromJson(data.data);
+        } else {
+          pojo = null;
+          logger.e('获取视频数据失败');
+        }
+      } else {
+        pojo = null;
+        logger.e('视频数据加载请求失败');
+      }
+
+      setState(() {
+        if (pojo == null) {
+          _errorMessage = 'pojo = null';
+        }
+        _videoDetail = pojo;
+      });
+      // setState(() {
+      //   _videoDetail = mockData;
+      //   // _isLoading = false;
+      // });
+      await _initializeVideoPlayer();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          logger.e('在加载数据时失败: ${e.toString()}');
+          _errorMessage = '数据加载失败: ${e.toString()}';
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // 初始化视频播放器
+  Future<void> _initializeVideoPlayer() async {
+    if (_videoDetail == null) {
+      await _loadVideoData();
+    }
+    try {
+      // await _loadVideoData();
+      // _videoPlayerController =
+      //     VideoPlayerController.asset('assets/videos/test.mp4');
+      _videoPlayerController =
+          VideoPlayerController.networkUrl(Uri.parse(_videoDetail!.videoSource))
+            ..addListener(_handleVideoPlayerListener);
+      await _videoPlayerController.initialize();
+
+      final size = _videoPlayerController.value.size;
+      logger.d('视频width: ${size.width}, height: ${size.height}');
+      _chewieController = ChewieController(
+        videoPlayerController: _videoPlayerController,
+        // aspectRatio: 16 / 9,
+        aspectRatio: size.height / size.width,
+        autoInitialize: true,
+        autoPlay: true,
+        looping: false,
+        // 隐藏默认控制栏
+        showControls: false,
+        materialProgressColors: ChewieProgressColors(
+          playedColor: Colors.red,
+          handleColor: Colors.white,
+          backgroundColor: Color.fromRGBO(211, 211, 211, 0.3),
+          bufferedColor: Color.fromRGBO(211, 211, 211, 0.1),
+        ),
+        placeholder: const Center(child: CircularProgressIndicator()),
+        fullScreenByDefault: false,
+        errorBuilder: (context, error) => const Center(child: Text('视频加载失败')),
+      );
+      _videoPlayerController.addListener(_handleVideoPlayerListener);
+
+      // 启动隐藏视频控制按钮计时器
+      _startHideControlsTimer();
+
+      // 为页面滚动控制器添加监听器
+      _scrollController.addListener(_handleScroll);
+
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          logger.e('在初始化视频播放器时出现问题: ${e.toString()}');
+          _errorMessage = '视频初始化失败: ${e.toString()}';
+        });
+      }
+    }
+  }
+
+  // 构建加载动画
+  Widget _buildLoadingIndicator() {
+    return Center(
+      child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation<Color>(Colors.pinkAccent),
+      ),
+    );
+  }
+
+  // 构建错误动画
+  Widget _buildErrorWidget(String error) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('加载失败: $error', style: const TextStyle(color: Colors.black)),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: _retryLoading,
+            child: Text('重试'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 重试加载视频
+  void _retryLoading() {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _videoDetail = null;
+    });
+    _loadVideoData();
   }
 
   // 处理页面滚动
@@ -161,6 +319,31 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        body: Center(
+          child: _buildLoadingIndicator(),
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        body: _buildErrorWidget(_errorMessage!),
+      );
+    }
+
+    if (_videoDetail == null) {
+      return Scaffold(
+        body: Center(
+          child: Text('视频数据加载异常'),
+        ),
+      );
+    }
+    return _buildMainContent();
+  }
+
+  Widget _buildMainContent() {
     return _isFullScreen
         ? Scaffold(body: _buildFullScreenPlayer())
         : DefaultTabController(
@@ -213,7 +396,8 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                       ),
                     SliverToBoxAdapter(
                       child: AspectRatio(
-                        aspectRatio: _chewieController.aspectRatio ?? 16 / 9,
+                        aspectRatio: 16 / 9,
+                        // aspectRatio: _videoPlayerController.value.size.width / _videoPlayerController.value.size.height,
                         child: GestureDetector(
                           onTap: () {
                             if (_showControls) {
@@ -227,6 +411,10 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                           },
                           child: Stack(
                             children: [
+                              // 背景
+                              Container(
+                                color: Colors.black,
+                              ),
                               // 视频组件
                               Chewie(controller: _chewieController),
                               // 进度条组件
@@ -262,8 +450,13 @@ class _VideoDetailPageState extends State<VideoDetailPage> {
                     ),
                   ];
                 },
-                body: const TabBarView(
-                  children: [VideoInfoPage(), CommentPage()],
+                body: TabBarView(
+                  // TODO: 加载视频详细数据
+                  children: [
+                    VideoInfoPage(videoDetail: _videoDetail!),
+                    CommentPage()
+                  ],
+                  // children: [],
                 ),
               ),
             ),

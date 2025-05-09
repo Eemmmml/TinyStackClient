@@ -190,8 +190,9 @@ class _RecommendationPageState extends State<RecommendationPage> {
           final item = page.items[index];
           return InkWell(
             onTap: () {
+              // 后续更换为真实的id
               Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => VideoDetailPage()));
+                  MaterialPageRoute(builder: (context) => VideoDetailPage(videoContentId: item.id!)));
             },
             borderRadius: BorderRadius.circular(8),
             child: ContentCard(
@@ -380,8 +381,9 @@ class _RandomBannerState extends State<RandomBanner> {
   Widget _buildBannerItem(String imageUrl) {
     return InkWell(
       onTap: () {
+        // TODO: 替换为实际的内容 Id
         Navigator.push(context,
-            MaterialPageRoute(builder: (context) => VideoDetailPage()));
+            MaterialPageRoute(builder: (context) => VideoDetailPage(videoContentId: 0)));
       },
       borderRadius: BorderRadius.circular(8.0),
       child: Container(
