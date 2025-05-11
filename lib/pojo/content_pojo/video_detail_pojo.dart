@@ -26,6 +26,8 @@ class VideoDetailPojo {
   final String description;
   // 当前视频的播放量
   final int viewCount;
+  // 当前视频的评论数
+  final int commentCount;
   // 视频关键字列表
   final String tabs;
   // 当前视频的发布时间
@@ -42,6 +44,7 @@ class VideoDetailPojo {
     required this.title,
     required this.videoSource,
     required this.viewCount,
+    required this.commentCount,
     required this.tabs,
     required this.description,
     required this.uploadTime,

@@ -1,9 +1,13 @@
 import 'dart:convert';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:logger/logger.dart';
+import 'package:tinystack/configs/dio_config.dart';
+import 'package:tinystack/pojo/content_pojo/recommendation_video_list_pojo.dart';
+import 'package:tinystack/pojo/search_result_pojo/sever_search_result_pojo.dart';
 import 'package:tinystack/utils/data_format_utils.dart';
 
 import '../../pojo/content_pojo/video_detail_pojo.dart';
@@ -19,6 +23,7 @@ class VideoInfoPage extends StatefulWidget {
 }
 
 class _VideoInfoPageState extends State<VideoInfoPage> {
+  final dio = Dio();
   final logger = Logger();
 
   // 折叠状态
@@ -27,10 +32,105 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
   // 关注状态
   bool _isFollowed = false;
 
+  // 视频列表
+  List<RecommendationVideoListPojo> _videoList = [];
+  int _currentPage = 1;
+  bool _isVideoListLoading = false;
+  bool _hasMore = true;
+  final int _pageSize = 5;
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     _isFollowed = widget.videoDetail.isFollowed;
+    _loadInitData();
+    _scrollController.addListener(_scrollListener);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollListener() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      _loadMoreData();
+    }
+  }
+
+  Future<void> _loadInitData() async {
+    await _fetchVideoList(page: 1);
+  }
+
+  Future<void> _loadMoreData() async {
+    if (_isVideoListLoading || !_hasMore) {
+      return;
+    }
+    setState(() {
+      _currentPage++;
+      _isVideoListLoading = true;
+    });
+
+    await _fetchVideoList(page: _currentPage);
+
+    setState(() {
+      _isVideoListLoading = false;
+    });
+  }
+
+  Future<void> _refreshData() async {
+    setState(() {
+      _currentPage = 1;
+      _videoList.clear();
+      _hasMore = true;
+    });
+
+    await _fetchVideoList(page: _currentPage);
+  }
+
+  Future<void> _fetchVideoList({required int page}) async {
+    await Future.delayed(Duration(seconds: 1));
+
+    final response = await dio
+        .get('${DioConfig.severUrl}/content/search/typed', queryParameters: {
+      'type': 2,
+      'pageNum': _currentPage,
+      'pageSize': _pageSize,
+    });
+
+    if (response.statusCode == 200) {
+      logger.d('获取视频数据列表请求成功');
+      final data = ServerSearchResponsePojo.fromJson(response.data);
+      if (data.code == 1) {
+        logger.d('获取视频列表数据成功: ${data.data}');
+        List<ServerSearchResultPojo> result = [];
+        for (var map in data.data) {
+          result.add(ServerSearchResultPojo.fromJson(map));
+        }
+        final newData = result
+            .map((ServerSearchResultPojo element) =>
+                RecommendationVideoListPojo.fromSearchPojo(element))
+            .toList();
+
+        setState(() {
+          if (page == 1) {
+            _videoList = newData;
+          } else {
+            _videoList.addAll(newData);
+          }
+          // 处理没用更多数据的情况
+          _hasMore = page < 3;
+          logger.d('新增 ${newData.length} 条数据');
+        });
+      } else {
+        logger.e('获取视频列表数据失败');
+      }
+    } else {
+      logger.e('获取视频数据列表请求失败');
+    }
   }
 
   @override
@@ -66,17 +166,11 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => ProfilePageForOthers()));
+                      builder: (context) => ProfilePageForOthers(userId: widget.videoDetail.uploaderId)));
             },
             splashColor: Colors.transparent,
             highlightColor: Colors.transparent,
             hoverColor: Colors.transparent,
-            // child: CircleAvatar(
-            //   radius: 24,
-            //   // TODO: 从网络获取头像
-            //   // backgroundImage: NetworkImage(url),
-            //   backgroundImage: AssetImage('assets/user_info/user_avatar3.jpg'),
-            // ),
             child: CachedNetworkImage(
               imageUrl: uploader.uploaderAvatarUrl,
               imageBuilder: (context, imageProvider) => CircleAvatar(
@@ -103,7 +197,7 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
               Navigator.push(
                   context,
                   MaterialPageRoute(
-                      builder: (context) => ProfilePageForOthers()));
+                      builder: (context) => ProfilePageForOthers(userId: widget.videoDetail.uploaderId)));
             },
             splashColor: Colors.transparent,
             highlightColor: Colors.transparent,
@@ -212,7 +306,6 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
     );
   }
 
-
   // 展开后的详细内容
   Widget _buildExpandedContent() {
     logger.d('解析json数据: ${widget.videoDetail.tabs}');
@@ -236,60 +329,74 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
         Wrap(
           spacing: 6,
           runSpacing: 6,
-          children: tabList.map((tab) => Chip(
-            label: Text(
-              tab,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[800],
-              ),
-            ),
-            backgroundColor: Colors.grey[100],
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: Colors.grey[300]!,
-                width: 0.5,
-              ),
-            ),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          )).toList(),
+          children: tabList
+              .map((tab) => Chip(
+                    label: Text(
+                      tab,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[800],
+                      ),
+                    ),
+                    backgroundColor: Colors.grey[100],
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: Colors.grey[300]!,
+                        width: 0.5,
+                      ),
+                    ),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ))
+              .toList(),
         ),
         const SizedBox(height: 16),
       ],
     );
   }
 
+
   // 构建视频列表
   Widget _buildVideoList() {
-    return ListView.separated(
-      padding: EdgeInsets.zero,
-      physics: NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
-      itemCount: 10,
-      separatorBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: Divider(
-          height: 1,
-          thickness: 1,
-          color: Colors.grey[300],
-          indent: 16,
-          endIndent: 16,
+    return RefreshIndicator(
+      onRefresh: _refreshData,
+      child: ListView.separated(
+        controller: _scrollController,
+        padding: EdgeInsets.zero,
+        physics: NeverScrollableScrollPhysics(),
+        shrinkWrap: true,
+        itemCount: _videoList.length + (_hasMore ? 1 : 0),
+        separatorBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Divider(
+            height: 1,
+            thickness: 1,
+            color: Colors.grey[300],
+            indent: 16,
+            endIndent: 16,
+          ),
         ),
+        itemBuilder: (context, index) {
+          if (index >= _videoList.length) {
+            // return _buildLoadingIndicator();
+            return SizedBox.shrink();
+          }
+          return _buildVideoCard(_videoList[index]);
+        },
       ),
-      itemBuilder: (context, index) => _buildVideoCard(index),
     );
   }
 
   // 构建单个视频卡片组件
-  Widget _buildVideoCard(int index) {
+  Widget _buildVideoCard(RecommendationVideoListPojo video) {
     return InkWell(
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       // TODO: 实现具体的点击逻辑
-      onTap: () => print('Click $index'),
+      onTap: () => debugPrint('Click ${video.id}'),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 1),
         child: Column(
@@ -307,8 +414,11 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(8),
                         // 封面占位颜色
+                        // image: DecorationImage(
+                        //     image: AssetImage('assets/user_background.png'),
+                        //     fit: BoxFit.cover),
                         image: DecorationImage(
-                            image: AssetImage('assets/user_background.png'),
+                            image: CachedNetworkImageProvider(video.coverUrl),
                             fit: BoxFit.cover),
                       ),
                       // TODO: 从网络获取图片
@@ -322,7 +432,7 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        _formatDuration(Duration(minutes: 4, seconds: 20)),
+                        DataFormatUtils.formatDuration(video.durationInSecond),
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 12,
@@ -339,7 +449,8 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        '这是一个视频标题',
+                        // '这是一个视频标题',
+                        video.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -349,8 +460,10 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        DateFormat('yyyy-MM-dd HH:mm').format(
-                            DateTime.now().subtract(Duration(hours: 2))),
+                        // DateFormat('yyyy-MM-dd HH:mm').format(
+                        //     DateTime.now().subtract(Duration(hours: 2))),
+                        DateFormat('yyyy-MM-dd HH:mm')
+                            .format(video.publishTime),
                         style: TextStyle(
                           color: Colors.grey[600],
                           fontSize: 12,
@@ -365,7 +478,8 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
                               size: 14, color: Colors.grey[600]),
                           const SizedBox(width: 4),
                           Text(
-                            '科技评测君',
+                            // '科技评测君',
+                            video.uploaderName,
                             style: TextStyle(
                               color: Colors.grey[600],
                               fontSize: 12,
@@ -376,8 +490,10 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _buildInfoWithIcon(Icons.play_arrow, 120),
-                          _buildInfoWithIcon(Icons.comment, 110),
+                          // _buildInfoWithIcon(Icons.play_arrow, 120),
+                          // _buildInfoWithIcon(Icons.comment, 110),
+                          _buildInfoWithIcon(Icons.play_arrow, video.viewCount),
+                          _buildInfoWithIcon(Icons.comment, video.commentCount),
                           IconButton(
                             icon: Icon(Icons.more_vert, size: 20),
                             padding: EdgeInsets.zero,
@@ -424,7 +540,6 @@ class _VideoInfoPageState extends State<VideoInfoPage> {
     }
     return '${twoDigits(duration.inMinutes)}:${twoDigits(duration.inSeconds.remainder(60))}';
   }
-
 
   // 构建统计信息组件
   Widget _buildStatItem(IconData icon, String text) {

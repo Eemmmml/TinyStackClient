@@ -7,6 +7,9 @@ class UserBasicInfo {
   // 用户名
   String username;
 
+  // 用户背景图片地址
+  String backgroundImageUrl;
+
   // 头像图片地址
   String avatarImageUrl;
 
@@ -24,6 +27,7 @@ class UserBasicInfo {
 
   UserBasicInfo(
       {required this.username,
+        required this.backgroundImageUrl,
       required this.avatarImageUrl,
       required this.description,
       required this.interests,
@@ -39,6 +43,7 @@ class UserBasicInfo {
     return [
       UserBasicInfo(
         username: 'Eemmmml',
+        backgroundImageUrl: 'https://picsum.photos/1000/800?random=4',
         avatarImageUrl: 'assets/user_info/user_avatar.jpg',
         description: '这个人很懒，什么也没有留下~',
         interests: 211,
@@ -47,6 +52,7 @@ class UserBasicInfo {
       ),
       UserBasicInfo(
         username: 'Kevin',
+        backgroundImageUrl: 'https://picsum.photos/1000/800?random=4',
         avatarImageUrl: 'assets/user_info/user_avatar2.jpg',
         description: '这个人很懒，什么也没有留下~',
         interests: 477,
@@ -55,6 +61,7 @@ class UserBasicInfo {
       ),
       UserBasicInfo(
         username: 'Jack',
+        backgroundImageUrl: 'https://picsum.photos/1000/800?random=4',
         avatarImageUrl: 'assets/user_info/user_avatar1.jpg',
         description: '这个人很懒，什么也没有留下~',
         interests: 452,
@@ -67,6 +74,7 @@ class UserBasicInfo {
   static UserBasicInfo get myUserBasicInfo {
     return UserBasicInfo(
       username: 'Eemmmml',
+      backgroundImageUrl: 'https://picsum.photos/1000/800?random=4',
       avatarImageUrl: 'https://picsum.photos/200/200?random=4',
       description: '这个人很懒，什么也没有留下~',
       interests: 211,

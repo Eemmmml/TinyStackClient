@@ -18,6 +18,7 @@ VideoDetailPojo _$VideoDetailPojoFromJson(Map<String, dynamic> json) =>
       title: json['title'] as String,
       videoSource: json['videoSource'] as String,
       viewCount: (json['viewCount'] as num).toInt(),
+      commentCount: (json['commentCount'] as num).toInt(),
       tabs: json['tabs'] as String,
       description: json['description'] as String,
       uploadTime: DateTime.parse(json['uploadTime'] as String),
@@ -36,6 +37,7 @@ Map<String, dynamic> _$VideoDetailPojoToJson(VideoDetailPojo instance) =>
       'videoSource': instance.videoSource,
       'description': instance.description,
       'viewCount': instance.viewCount,
+      'commentCount': instance.commentCount,
       'tabs': instance.tabs,
       'uploadTime': instance.uploadTime.toIso8601String(),
     };

@@ -121,7 +121,7 @@ List<ChatMessageItem> generateMockMessages() {
       timestamp: now.subtract(const Duration(minutes: 10)),
       senderId: 'user_789',
       senderName: 'Json',
-      type: MessageType.emoji,
+      type: MessageType.text,
     ),
 
     // 昨天的消息（测试日期格式）
@@ -131,7 +131,7 @@ List<ChatMessageItem> generateMockMessages() {
       timestamp: DateTime(now.year, now.month, now.day - 1, 15, 30),
       senderId: currentUserId,
       senderName: 'Kevin',
-      type: MessageType.video,
+      type: MessageType.text,
     ),
 
     // 跨月消息（测试MM-dd格式）
@@ -184,7 +184,7 @@ List<ChatMessageItem> generateMockMessages() {
       timestamp: DateTime(now.year - 1, 3, 20, 14, 25),
       senderId: 'current_user',
       senderName: 'No',
-      type: MessageType.video,
+      type: MessageType.text,
     ),
 
     // 最早的消息（测试列表底部）

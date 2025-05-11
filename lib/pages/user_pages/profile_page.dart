@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tinystack/configs/dio_config.dart';
 import 'package:tinystack/pojo/user_pojo/user_profile_info_pojo.dart';
 import 'package:logger/logger.dart';
 import 'package:tinystack/provider/auth_state_provider.dart';
@@ -68,7 +69,7 @@ class _ProfilePageState extends State<ProfilePage> with WidgetsBindingObserver{
       final userID = authProvider.isLoggedInID;
 
       logger.d('尝试向服务器请求用户主页数据, 用户 ID: $userID');
-      final response = await dio.get('http://10.198.190.235:8080/user/info/$userID');
+      final response = await dio.get('${DioConfig.severUrl}/user/info/$userID');
 
       if (response.statusCode == 200) {
         final responseData = UserProfileInfoPojo.fromJson(response.data);

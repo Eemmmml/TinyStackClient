@@ -29,6 +29,7 @@ class ServerSearchResultPojo {
   final String? coverUrl;
   final String? avatarUrl;
   final String? title;
+  final int? uploaderId;
   final String? uploaderName;
   final int? fans;
   final int? viewCount;
@@ -43,6 +44,7 @@ class ServerSearchResultPojo {
       this.coverUrl,
       this.avatarUrl,
       this.title,
+        this.uploaderId,
       this.uploaderName,
       this.fans,
       this.viewCount,

@@ -1,18 +1,36 @@
+import 'dart:math';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:tinystack/configs/dio_config.dart';
+import 'package:tinystack/entity/user_basic_info.dart';
 import 'package:tinystack/entity/user_profile_attachment.dart';
+import 'package:logger/logger.dart';
+import 'package:dio/dio.dart';
+import 'package:tinystack/pojo/user_pojo/user_profile_info_pojo.dart';
+import 'package:tinystack/pojo/user_pojo/user_profile_page_for_others.dart';
+import 'package:tinystack/utils/data_format_utils.dart';
 
 import 'profile_page_for_others_attachment_page.dart';
 import 'user_main_page.dart';
 import 'user_post_page.dart';
 
 class ProfilePageForOthers extends StatefulWidget {
-  const ProfilePageForOthers({super.key});
+  final int userId;
+  const ProfilePageForOthers({super.key, required this.userId});
 
   @override
   State<ProfilePageForOthers> createState() => _ProfilePageForOthersState();
 }
 
 class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
+  final logger = Logger();
+  final dio = Dio();
+  // 用户数据信息
+  UserBasicInfo? _userInfo;
+
+  bool _isLoading = true;
+
   final ScrollController _scrollController = ScrollController();
 
   // 是否展开用户简介
@@ -30,6 +48,7 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
   @override
   void initState() {
     super.initState();
+    _loadUserData();
     _scrollController.addListener(_scrollListener);
   }
 
@@ -43,6 +62,29 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
     setState(() {
       _scrollOffset = _scrollController.offset;
     });
+  }
+
+  // 加载用户数据
+  Future<void> _loadUserData() async {
+    final response = await dio.get('${DioConfig.severUrl}/user/info/${widget.userId}');
+    if (response.statusCode == 200) {
+      logger.d('获取用户数据请求成功');
+      final data =  UserProfilePageForOthers.fromJson(response.data);
+      if (data.code == 1) {
+        final info = UserBasicInfo.fromJson(data.data);
+        logger.d('获取用户数据成功: info ${info.toString()}');
+         if (!mounted) return;
+         setState(() {
+           // _userInfo = UserBasicInfo.myUserBasicInfo;
+           _userInfo = info;
+           _isLoading = false;
+         });
+      } else {
+        logger.e('获取用户数据失败');
+      }
+    } else {
+      logger.e('获取用户数据请求失败');
+    }
   }
 
   @override
@@ -73,7 +115,8 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                         height: 200,
                         decoration: BoxDecoration(
                           image: DecorationImage(
-                            image: AssetImage('assets/user_background.png'),
+                            // image: AssetImage('assets/user_background.png'),
+                            image: _userInfo == null ? AssetImage('assets/user_background.png') : CachedNetworkImageProvider(_userInfo!.backgroundImageUrl),
                             fit: BoxFit.cover,
                           ),
                         ),
@@ -88,8 +131,9 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
                             image: DecorationImage(
-                              image: AssetImage(
-                                  'assets/user_info/user_avatar2.jpg'),
+                              // image: AssetImage(
+                              //     'assets/user_info/user_avatar2.jpg'),
+                              image: _userInfo == null ? AssetImage('assets/user_info/user_avatar2.jpg') : CachedNetworkImageProvider(_userInfo!.avatarImageUrl),
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -196,8 +240,9 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
                             image: DecorationImage(
-                              image: AssetImage(
-                                  'assets/user_info/user_avatar2.jpg'),
+                              // image: AssetImage(
+                              //     'assets/user_info/user_avatar2.jpg'),
+                              image: _userInfo == null ? AssetImage('assets/user_info/user_avatar2.jpg') : CachedNetworkImageProvider(_userInfo!.avatarImageUrl),
                               fit: BoxFit.cover,
                             ),
                           ),
@@ -217,9 +262,12 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                                     mainAxisAlignment:
                                         MainAxisAlignment.spaceAround,
                                     children: [
-                                      _buildStatItem('1.2万', '粉丝'),
-                                      _buildStatItem('345', '关注'),
-                                      _buildStatItem('5.6万', '获赞'),
+                                      // _buildStatItem('1.2万', '粉丝'),
+                                      // _buildStatItem('345', '关注'),
+                                      // _buildStatItem('5.6万', '作品'),
+                                      _buildStatItem(DataFormatUtils.formatNumber(_userInfo == null ? 0 : _userInfo!.fans), '粉丝'),
+                                      _buildStatItem(DataFormatUtils.formatNumber(_userInfo == null ? 0 : _userInfo!.interests), '关注'),
+                                      _buildStatItem(DataFormatUtils.formatNumber(_userInfo == null ? 0 : _userInfo!.compositions), '作品'),
                                     ],
                                   ),
                                   SizedBox(height: 12),
@@ -294,7 +342,8 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '用户名用户名用户名用户名用户名',
+                          // '用户名用户名用户名用户名用户名',
+                          _userInfo == null ? '' : _userInfo!.username,
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -343,7 +392,8 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
     return _isFollowed
         ? Center(
             child: Text(
-              '用户名用户名用户名',
+              _userInfo == null ? '' : _userInfo!.username,
+              // '用户名用户名用户名',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.black,
@@ -372,8 +422,9 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
                     CircleAvatar(
                       radius: 12,
                       // TODO: 通过网络获取实际用户头像
-                      backgroundImage:
-                          AssetImage('assets/user_info/user_avatar2.jpg'),
+                      // backgroundImage:
+                      //     AssetImage('assets/user_info/user_avatar2.jpg'),
+                      backgroundImage: _userInfo == null ? AssetImage('assets/user_info/user_avatar2.jpg') : CachedNetworkImageProvider(_userInfo!.avatarImageUrl),
                     ),
                     SizedBox(width: 6),
                     Text(
@@ -423,7 +474,8 @@ class _ProfilePageForOthersState extends State<ProfilePageForOthers> {
           Padding(
             padding: EdgeInsets.only(right: 40), // 为按钮预留空间
             child: Text(
-              '这里是用户简介，可以很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长',
+              // '这里是用户简介，可以很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长很长',
+              _userInfo == null ? '这个人很懒，什么都没有留下～～' : _userInfo!.description,
               maxLines: _isDescriptionExpanded ? null : 1,
               overflow: _isDescriptionExpanded ? null : TextOverflow.ellipsis,
               style: TextStyle(

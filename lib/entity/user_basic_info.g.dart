@@ -9,6 +9,7 @@ part of 'user_basic_info.dart';
 UserBasicInfo _$UserBasicInfoFromJson(Map<String, dynamic> json) =>
     UserBasicInfo(
       username: json['username'] as String,
+      backgroundImageUrl: json['backgroundImageUrl'] as String,
       avatarImageUrl: json['avatarImageUrl'] as String,
       description: json['description'] as String,
       interests: (json['interests'] as num).toInt(),
@@ -19,6 +20,7 @@ UserBasicInfo _$UserBasicInfoFromJson(Map<String, dynamic> json) =>
 Map<String, dynamic> _$UserBasicInfoToJson(UserBasicInfo instance) =>
     <String, dynamic>{
       'username': instance.username,
+      'backgroundImageUrl': instance.backgroundImageUrl,
       'avatarImageUrl': instance.avatarImageUrl,
       'description': instance.description,
       'interests': instance.interests,
